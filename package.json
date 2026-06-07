@@ -1,0 +1,34 @@
+{
+  "name": "qiushuiai-web-clipper",
+  "description": "秋水 · 网页剪藏 — 将飞书文档一键保存为 Obsidian Markdown 笔记",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "compile": "vue-tsc --noEmit",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "defuddle": "^0.18.1",
+    "js-yaml": "^4.1.1",
+    "vue": "^3.5.29"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/jsdom": "^28.0.1",
+    "@vitest/coverage-v8": "^4.1.5",
+    "@wxt-dev/module-vue": "^1.0.3",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5",
+    "vue-tsc": "^3.2.5",
+    "wxt": "^0.20.25"
+  },
+  "packageManager": "pnpm@9.15.0+sha512.76e2379760a4328ec4415815bcd6628dee727af3779aaa4c914e3944156c4299921a89f976381ee107d41f12cfa4b66681ca9c718f0668fa0831ed4c6d8ba56c"
+}
