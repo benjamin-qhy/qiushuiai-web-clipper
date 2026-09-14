@@ -19,6 +19,7 @@
     "lucide-react": "^1.45.0",
     "radix-ui": "^1.6.7",
     "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^4.12.4",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5"

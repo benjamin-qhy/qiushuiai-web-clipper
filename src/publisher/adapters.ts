@@ -1,7 +1,7 @@
 import { browser } from 'wxt/browser'
 import type { WorkbenchAdapters } from '@qiushui/content-publishing-workbench'
 import { getSettings } from '../storage/settings'
-import { savePublisherDraft } from './drafts'
+import { getPublisherLayout, savePublisherDraft, savePublisherLayout } from './drafts'
 import {
   generatePublisherMarkdown,
   getPublisherModelChoices,
@@ -24,6 +24,8 @@ export function createPublisherAdapters(): WorkbenchAdapters {
       return generatePublisherMarkdown(input, await getSettings())
     },
     saveDraft: savePublisherDraft,
+    loadLayout: getPublisherLayout,
+    saveLayout: savePublisherLayout,
     async openSettings() {
       await browser.tabs.create({ url: browser.runtime.getURL('/options.html') })
     },

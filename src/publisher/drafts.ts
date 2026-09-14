@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser'
 import { createDraft } from '@qiushui/content-publishing-workbench'
-import type { DraftInstruction, PublisherDraft, PublisherLayout, SourceSnapshot } from './types'
+import type { DraftInstruction, PublisherDraft, PublisherLayout, SourceSnapshot, WorkbenchPaneId } from './types'
 
 const draftKey = (snapshotId: string) => `publisher-draft:${snapshotId}`
 const latestSourceKey = (sourceUrl: string) => `publisher-latest:${sourceUrl}`
@@ -11,6 +11,7 @@ const layoutKey = 'publisher-layout'
 const defaultLayout: PublisherLayout = {
   sizes: [30, 35, 35],
   visible: { source: true, composer: true, output: true },
+  activePane: 'composer',
 }
 
 function normalizePublisherDraft(draft: PublisherDraft): PublisherDraft {
@@ -142,5 +143,18 @@ export async function savePublisherLayout(layout: PublisherLayout): Promise<void
 export async function getPublisherLayout(): Promise<PublisherLayout> {
   const result = await browser.storage.local.get(layoutKey)
   const layout = result[layoutKey] as PublisherLayout | undefined
-  return structuredClone(layout ?? defaultLayout)
+  const visible = { ...defaultLayout.visible, ...layout?.visible }
+  if (!Object.values(visible).some(Boolean)) Object.assign(visible, defaultLayout.visible)
+  const sizes = layout?.sizes?.length === 3 && layout.sizes.every(size => Number.isFinite(size) && size >= 0)
+    ? layout.sizes
+    : defaultLayout.sizes
+  const paneIds: WorkbenchPaneId[] = ['source', 'composer', 'output']
+  const candidateActive = layout?.activePane
+  const storedActive: WorkbenchPaneId = candidateActive !== undefined && paneIds.includes(candidateActive)
+    ? candidateActive
+    : defaultLayout.activePane
+  const activePane = visible[storedActive]
+    ? storedActive
+    : paneIds.find(pane => visible[pane])!
+  return structuredClone({ sizes, visible, activePane })
 }

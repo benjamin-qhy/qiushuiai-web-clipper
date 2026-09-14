@@ -135,15 +135,37 @@ describe('publisher drafts', () => {
     expect(await getPublisherLayout()).toEqual({
       sizes: [30, 35, 35],
       visible: { source: true, composer: true, output: true },
+      activePane: 'composer',
     })
 
     const layout = {
       sizes: [40, 0, 60] as [number, number, number],
       visible: { source: true, composer: false, output: true },
+      activePane: 'output' as const,
     }
     await savePublisherLayout(layout)
     layout.visible.source = false
 
     expect((await getPublisherLayout()).visible.source).toBe(true)
+  })
+
+  it('repairs obsolete or invalid saved layouts', async () => {
+    mockStorage['publisher-layout'] = {
+      sizes: [Number.NaN, 30, 70],
+      visible: { source: false, composer: false, output: false },
+      activePane: 'removed',
+    }
+
+    expect(await getPublisherLayout()).toEqual({
+      sizes: [30, 35, 35],
+      visible: { source: true, composer: true, output: true },
+      activePane: 'composer',
+    })
+
+    mockStorage['publisher-layout'] = {
+      sizes: [45, 55, 0],
+      visible: { source: true, composer: true, output: false },
+    }
+    expect((await getPublisherLayout()).activePane).toBe('composer')
   })
 })

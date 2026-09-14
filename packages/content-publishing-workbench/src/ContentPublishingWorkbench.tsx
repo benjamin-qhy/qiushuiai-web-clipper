@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
-import type { ModelChoice, ModelSelection, PromptTemplate, PublisherDraft, WorkbenchAdapters } from './types'
+import {
+  DEFAULT_PUBLISHER_LAYOUT,
+  type ModelChoice,
+  type ModelSelection,
+  type PromptTemplate,
+  type PublisherDraft,
+  type PublisherLayout,
+  type WorkbenchAdapters,
+} from './types'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +33,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Textarea } from './components/ui/textarea'
 import { MarkdownEditor } from './components/MarkdownEditor'
+import { ResponsiveWorkspace } from './components/ResponsiveWorkspace'
 
 export interface ContentPublishingWorkbenchProps {
   initialDraft: PublisherDraft
@@ -46,6 +55,7 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [layout, setLayout] = useState<PublisherLayout | null>(null)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
   const latestDraft = useRef(draft)
 
@@ -89,6 +99,18 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
 
   useEffect(() => () => {
     void adapters.saveDraft(latestDraft.current).catch(() => undefined)
+  }, [adapters])
+
+  useEffect(() => {
+    let cancelled = false
+    adapters.loadLayout()
+      .then(savedLayout => { if (!cancelled) setLayout(savedLayout) })
+      .catch(layoutError => {
+        if (cancelled) return
+        setLayout(structuredClone(DEFAULT_PUBLISHER_LAYOUT))
+        setError(layoutError instanceof Error ? layoutError.message : String(layoutError))
+      })
+    return () => { cancelled = true }
   }, [adapters])
 
   const selectedModel = useMemo(() => models.find(model =>
@@ -146,6 +168,13 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
     else void generate()
   }
 
+  function updateLayout(nextLayout: PublisherLayout) {
+    setLayout(nextLayout)
+    void adapters.saveLayout(nextLayout).catch(layoutError => {
+      setError(layoutError instanceof Error ? layoutError.message : String(layoutError))
+    })
+  }
+
   return (
     <main className="publishing-workbench">
       <header className="publishing-workbench__header">
@@ -153,8 +182,8 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
         <span role="status">{saveStatus === 'saving' ? '正在保存…' : saveStatus === 'error' ? '草稿保存失败' : '草稿已自动保存'}</span>
       </header>
 
-      <div className="publishing-workbench__columns">
-        <section className="publishing-workbench__pane" aria-labelledby="source-pane-title">
+      {layout ? <ResponsiveWorkspace layout={layout} onLayoutChange={updateLayout} panes={{
+        source: <section className="publishing-workbench__pane" aria-labelledby="source-pane-title">
           <PaneHeader index="01" label="SOURCE" title="内容原文" titleId="source-pane-title">
             <Button asChild variant="link" size="sm">
               <a href={draft.snapshot.meta.source} target="_blank" rel="noreferrer">查看来源</a>
@@ -172,9 +201,9 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
             </dl>
             <Markdown>{draft.snapshot.markdown}</Markdown>
           </article>
-        </section>
+        </section>,
 
-        <section className="publishing-workbench__pane" aria-labelledby="composer-pane-title">
+        composer: <section className="publishing-workbench__pane" aria-labelledby="composer-pane-title">
           <PaneHeader index="02" label="COMPOSE" title="创作稿" titleId="composer-pane-title" />
           <div className="publishing-workbench__composer">
             <FieldGroup>
@@ -275,8 +304,16 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
               onChange={draftMarkdown => setDraft(current => ({ ...current, draftMarkdown }))}
             />
           </div>
-        </section>
-      </div>
+        </section>,
+
+        output: <section className="publishing-workbench__pane" aria-labelledby="output-pane-title">
+          <PaneHeader index="03" label="OUTPUT" title="发布成品" titleId="output-pane-title" />
+          <div className="publishing-workbench__output-placeholder">
+            <p>小红书卡片预览</p>
+            <span>卡片样式与分页将在下一阶段接入。</span>
+          </div>
+        </section>,
+      }} /> : <div className="publishing-workbench__layout-loading" role="status">正在恢复工作台布局…</div>}
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
