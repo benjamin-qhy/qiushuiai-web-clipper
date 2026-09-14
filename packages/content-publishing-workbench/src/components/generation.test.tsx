@@ -58,6 +58,7 @@ function createAdapters(): WorkbenchAdapters {
     }),
     saveLayout: vi.fn().mockResolvedValue(undefined),
     openSettings: vi.fn().mockResolvedValue(undefined),
+    download: vi.fn().mockResolvedValue(undefined),
   }
 }
 

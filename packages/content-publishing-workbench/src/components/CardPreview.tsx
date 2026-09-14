@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { buildDisplayPages, CardCanvas } from '../card/CardCanvas'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { buildDisplayPages, CardCanvas, type DisplayPage } from '../card/CardCanvas'
 import { CARD_THEMES } from '../card/themes'
+import {
+  buildPageFileName,
+  exportCardsToZip,
+  renderCardToPng,
+} from '../export/exportCards'
 import { CARD_GEOMETRY, MeasureStage, type MeasureStageHandle } from '../layout/MeasureStage'
 import { planPages } from '../layout/planPages'
 import type { PagePlan } from '../layout/types'
 import { parseCardMarkdown } from '../markdown/parse'
-import type { CardThemeId, SourceSnapshot } from '../types'
+import type { CardThemeId, DownloadArtifact, SourceSnapshot } from '../types'
 import { Button } from './ui/button'
 
 interface CardPreviewProps {
@@ -16,6 +21,7 @@ interface CardPreviewProps {
   themeId: CardThemeId
   coverEnabled: boolean
   currentPage: number
+  onDownload(artifact: DownloadArtifact): Promise<void>
   onThemeChange(themeId: CardThemeId): void
   onCoverChange(enabled: boolean): void
   onPageChange(page: number): void
@@ -28,6 +34,7 @@ export function CardPreview({
   themeId,
   coverEnabled,
   currentPage,
+  onDownload,
   onThemeChange,
   onCoverChange,
   onPageChange,
@@ -41,6 +48,23 @@ export function CardPreview({
   const [paginationError, setPaginationError] = useState(false)
   const [planAttempt, setPlanAttempt] = useState(0)
   const [scale, setScale] = useState(0.28)
+  const [exporting, setExporting] = useState<'current' | 'all' | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [exportRender, setExportRender] = useState<{
+    page: DisplayPage
+    token: number
+    themeId: CardThemeId
+    pageCount: number
+  } | null>(null)
+  const exportHostRef = useRef<HTMLDivElement>(null)
+  const exportSequenceRef = useRef(0)
+  const mountedRef = useRef(true)
+  const exportAbortRef = useRef<AbortController | null>(null)
+  const exportPendingRef = useRef<{
+    token: number
+    resolve(node: HTMLElement): void
+    reject(error: Error): void
+  } | null>(null)
 
   useEffect(() => {
     const stage = measureRef.current
@@ -80,6 +104,28 @@ export function CardPreview({
     return () => observer.disconnect()
   }, [])
 
+  useLayoutEffect(() => {
+    const pending = exportPendingRef.current
+    if (!exportRender || !pending || pending.token !== exportRender.token) return
+    const node = exportHostRef.current?.querySelector<HTMLElement>('.xhs-card')
+    if (!node) {
+      pending.reject(new Error('导出画布挂载失败'))
+    } else {
+      pending.resolve(node)
+    }
+    exportPendingRef.current = null
+  }, [exportRender])
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      exportAbortRef.current?.abort(new DOMException('导出已取消', 'AbortError'))
+      exportPendingRef.current?.reject(new DOMException('导出已取消', 'AbortError'))
+      exportPendingRef.current = null
+    }
+  }, [])
+
   const pages = buildDisplayPages(contentPages, coverEnabled)
   const safePage = pages.length ? Math.min(currentPage, pages.length - 1) : 0
   const virtualPages = pages.filter(page => Math.abs(page.index - safePage) <= 1)
@@ -87,6 +133,93 @@ export function CardPreview({
   useEffect(() => {
     if (plannedMarkdown === markdown && safePage !== currentPage) onPageChange(safePage)
   }, [currentPage, markdown, onPageChange, plannedMarkdown, safePage])
+
+  function mountExportPage(page: DisplayPage, signal: AbortSignal): Promise<HTMLElement> {
+    if (!mountedRef.current || signal.aborted) {
+      return Promise.reject(signal.reason instanceof Error ? signal.reason : new DOMException('导出已取消', 'AbortError'))
+    }
+    exportPendingRef.current?.reject(new Error('新的导出任务已开始'))
+    const token = exportSequenceRef.current++
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        if (exportPendingRef.current?.token === token) exportPendingRef.current = null
+        reject(signal.reason instanceof Error ? signal.reason : new DOMException('导出已取消', 'AbortError'))
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
+      exportPendingRef.current = {
+        token,
+        resolve(node) {
+          signal.removeEventListener('abort', onAbort)
+          resolve(node)
+        },
+        reject(error) {
+          signal.removeEventListener('abort', onAbort)
+          reject(error)
+        },
+      }
+      setExportRender({ page, token, themeId, pageCount: pages.length })
+    })
+  }
+
+  function beginExport(kind: 'current' | 'all'): AbortController {
+    exportAbortRef.current?.abort(new DOMException('新的导出任务已开始', 'AbortError'))
+    const controller = new AbortController()
+    exportAbortRef.current = controller
+    setExporting(kind)
+    setExportError(null)
+    return controller
+  }
+
+  function finishExport(controller: AbortController): void {
+    if (exportAbortRef.current === controller) exportAbortRef.current = null
+    if (!mountedRef.current) return
+    setExportRender(null)
+    setExporting(null)
+  }
+
+  function reportExportError(error: unknown, signal: AbortSignal, fallback: string): void {
+    if (!mountedRef.current || signal.aborted) return
+    setExportError(error instanceof Error ? error.message : fallback)
+  }
+
+  async function saveCurrentPage() {
+    const page = pages[safePage]
+    if (!page || exporting) return
+    const controller = beginExport('current')
+    try {
+      const node = await mountExportPage(page, controller.signal)
+      const blob = await renderCardToPng(node, undefined, controller.signal)
+      if (controller.signal.aborted) return
+      await onDownload({
+        blob,
+        fileName: buildPageFileName(title, page.index, pages.length),
+        signal: controller.signal,
+      })
+    } catch (error) {
+      reportExportError(error, controller.signal, 'PNG 导出失败')
+    } finally {
+      finishExport(controller)
+    }
+  }
+
+  async function saveAllPages() {
+    if (!pages.length || exporting) return
+    const controller = beginExport('all')
+    try {
+      const result = await exportCardsToZip({
+        pages,
+        title,
+        renderPage: page => mountExportPage(page, controller.signal),
+        signal: controller.signal,
+      })
+      if (controller.signal.aborted) return
+      await onDownload({ ...result, signal: controller.signal })
+    } catch (error) {
+      reportExportError(error, controller.signal, 'ZIP 导出失败')
+    } finally {
+      finishExport(controller)
+    }
+  }
 
   return <div className="publishing-workbench__card-builder">
     <MeasureStage ref={measureRef} themeId="layout" />
@@ -157,6 +290,22 @@ export function CardPreview({
           onClick={() => onPageChange(page.index)}
         ><span>{page.kind === 'cover' ? '封' : page.index + 1}</span></button>)}
       </div>
+      {pages.length > 20 ? <p className="publishing-workbench__export-warning" role="status">
+        共 {pages.length} 页，全部导出会逐页处理，可能需要较长时间。
+      </p> : null}
+      <div className="publishing-workbench__export-actions">
+        <Button variant="outline" disabled={Boolean(exporting)} onClick={() => void saveCurrentPage()}>
+          <Download aria-hidden="true" />{exporting === 'current' ? '正在生成…' : '保存当前页'}
+        </Button>
+        <Button disabled={Boolean(exporting)} onClick={() => void saveAllPages()}>
+          <Download aria-hidden="true" />{exporting === 'all' ? '正在打包…' : '保存全部'}
+        </Button>
+      </div>
+      {exportError ? <p className="publishing-workbench__error" role="alert">{exportError}</p> : null}
     </> : null}
+
+    {exportRender ? <div className="publishing-workbench__export-stage" aria-hidden="true" ref={exportHostRef}>
+      <CardCanvas page={exportRender.page} pageCount={exportRender.pageCount} themeId={exportRender.themeId} title={title} meta={meta} />
+    </div> : null}
   </div>
 }

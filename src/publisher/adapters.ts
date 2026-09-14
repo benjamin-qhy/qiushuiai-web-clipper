@@ -7,6 +7,7 @@ import {
   getPublisherModelChoices,
   resolvePublisherModelSelection,
 } from './ai'
+import { downloadPublisherArtifact } from './download'
 
 export function createPublisherAdapters(): WorkbenchAdapters {
   return {
@@ -29,5 +30,6 @@ export function createPublisherAdapters(): WorkbenchAdapters {
     async openSettings() {
       await browser.tabs.create({ url: browser.runtime.getURL('/options.html') })
     },
+    download: downloadPublisherArtifact,
   }
 }

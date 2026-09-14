@@ -33,4 +33,13 @@
 6. Passed — browser console contains no errors or warnings in the tested states.
 7. P2 fixed in engineering review — a failed DOM measurement now exposes an explicit error and retry action instead of masquerading as empty content.
 
+## Export QA
+
+- final workbench evidence: `/Users/benjamin/.codex/visualizations/2026/09/14/01a09e45-4a70-70c1-8d80-e611796e5e14/card-export-qa/export-workbench.jpg`
+- exported PNG evidence: `/Users/benjamin/.codex/visualizations/2026/09/14/01a09e45-4a70-70c1-8d80-e611796e5e14/card-export-qa/AI 产品设计：三个判断-01.png`
+- exported ZIP evidence: `/Users/benjamin/.codex/visualizations/2026/09/14/01a09e45-4a70-70c1-8d80-e611796e5e14/card-export-qa/AI 产品设计：三个判断.zip`
+- Passed — the export actions use restrained outline/primary hierarchy and remain legible within the output pane.
+- Passed — real browser DOM export produced a 1242 × 1656 RGBA PNG with the same typography, highlight, quote and footer as the preview.
+- Passed — macOS native archive extraction preserved the Chinese safe title and the ordered `-01.png` entry.
+
 final result: passed
