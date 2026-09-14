@@ -5,6 +5,7 @@ import { useBookmarkTree } from '../../src/composables/useBookmarkTree'
 import { useBookmarkSearch } from '../../src/composables/useBookmarkSearch'
 import { sortBookmarks, type BookmarkSortMode } from '../../src/bookmark/sort'
 import { getSettings } from '../../src/storage/settings'
+import { getAvailableModelSelection } from '../../src/ai/catalog'
 import { getFolderDescriptions, setFolderDescription } from '../../src/storage/folderDescriptions'
 import FolderTree from './components/FolderTree.vue'
 import BookmarkList from './components/BookmarkList.vue'
@@ -34,7 +35,7 @@ onMounted(async () => {
     await handleSelect(tree.folderTree.value[0].id).catch(setError)
   }
   const settings = await getSettings()
-  aiAvailable.value = !!settings.aiConfig.apiKey
+  aiAvailable.value = !!getAvailableModelSelection(settings)?.platform.apiKey.trim()
 })
 
 function findTitle(nodes: FolderNode[], id: string): string {

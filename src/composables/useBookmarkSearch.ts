@@ -4,7 +4,7 @@ import type { BookmarkListItem } from './useBookmarkTree'
 import type { BookmarkRecord } from '../storage/bookmarks'
 import { getAllBookmarkRecords } from '../storage/bookmarks'
 import { getSettings } from '../storage/settings'
-import { createAIProvider } from '../ai'
+import { createDefaultAIProvider } from '../ai'
 
 function getDomain(url?: string): string {
   if (!url) return ''
@@ -78,10 +78,6 @@ export function useBookmarkSearch() {
 
     try {
       const settings = await getSettings()
-      if (!settings.aiConfig.apiKey) {
-        throw new Error('AI 未配置，请先在设置中填写 API Key')
-      }
-
       // Collect all bookmarks from the full tree
       const roots = await browser.bookmarks.getTree()
       const allBookmarks: BookmarkListItem[] = []
@@ -104,7 +100,7 @@ export function useBookmarkSearch() {
         return parts.join(' | ')
       })
 
-      const ai = createAIProvider(settings.aiConfig)
+      const ai = createDefaultAIProvider(settings)
       const userPrompt = `查询: "${q}"\n\n书签列表:\n${lines.join('\n')}`
       const systemPrompt = '你是一个书签语义搜索助手。从书签列表中找出与查询语义最相关的书签，只返回 JSON：{"indices":[0,2,5]}（按相关度降序，最多20个）。'
       console.log('[bookmark-ai-search] submit', {

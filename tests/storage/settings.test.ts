@@ -39,6 +39,8 @@ describe('getSettings', () => {
     expect(s.aliyunOSS.customDomain).toBe('')
     expect(s.getNote.clientId).toBe('')
     expect(s.getNote.authToken).toBe('')
+    expect(s.aiPlatforms).toEqual([])
+    expect(s.lastUsedAIModel).toBeNull()
   })
 
   it('merges stored values over defaults', async () => {
@@ -54,6 +56,55 @@ describe('getSettings', () => {
     const s = await getSettings()
     expect(s.getNote.clientId).toBe('cli_123')
     expect(s.getNote.authToken).toBe('')
+  })
+
+  it('migrates the legacy AI config without losing its endpoint or model', async () => {
+    mockStorage['feishu-clipper-settings'] = {
+      aiConfig: {
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        apiKey: 'legacy-key',
+        model: 'qwen-long',
+      },
+    }
+
+    const s = await getSettings()
+
+    expect(s.aiPlatforms).toEqual([{
+      id: 'legacy-openai-compatible',
+      provider: 'openai-compatible',
+      apiKey: 'legacy-key',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      customModels: ['qwen-long'],
+    }])
+    expect(s.lastUsedAIModel).toEqual({
+      platformId: 'legacy-openai-compatible',
+      modelId: 'qwen-long',
+    })
+  })
+
+  it('keeps any number of configured platforms', async () => {
+    const aiPlatforms = Array.from({ length: 5 }, (_, index) => ({
+      id: `platform-${index}`,
+      provider: `provider-${index}`,
+      apiKey: `key-${index}`,
+      customModels: [],
+    }))
+    mockStorage['feishu-clipper-settings'] = { aiPlatforms }
+
+    const s = await getSettings()
+
+    expect(s.aiPlatforms).toHaveLength(5)
+  })
+
+  it('clears a last-used selection whose platform no longer exists', async () => {
+    mockStorage['feishu-clipper-settings'] = {
+      aiPlatforms: [],
+      lastUsedAIModel: { platformId: 'deleted', modelId: 'missing' },
+    }
+
+    const s = await getSettings()
+
+    expect(s.lastUsedAIModel).toBeNull()
   })
 })
 

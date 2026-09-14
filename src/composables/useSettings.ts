@@ -6,7 +6,13 @@ export function useSettings() {
   const settings = ref<Settings>({
     ...DEFAULT_SETTINGS,
     aliyunOSS: { ...DEFAULT_SETTINGS.aliyunOSS },
-    aiConfig: { ...DEFAULT_SETTINGS.aiConfig },
+    aiPlatforms: DEFAULT_SETTINGS.aiPlatforms.map(platform => ({
+      ...platform,
+      customModels: [...platform.customModels],
+    })),
+    lastUsedAIModel: DEFAULT_SETTINGS.lastUsedAIModel
+      ? { ...DEFAULT_SETTINGS.lastUsedAIModel }
+      : null,
     getNote: { ...DEFAULT_SETTINGS.getNote },
   })
   const isSaving = ref(false)
@@ -25,7 +31,13 @@ export function useSettings() {
     return {
       ...settings.value,
       aliyunOSS: { ...settings.value.aliyunOSS },
-      aiConfig: { ...settings.value.aiConfig },
+      aiPlatforms: settings.value.aiPlatforms.map(platform => ({
+        ...platform,
+        customModels: [...platform.customModels],
+      })),
+      lastUsedAIModel: settings.value.lastUsedAIModel
+        ? { ...settings.value.lastUsedAIModel }
+        : null,
       getNote: { ...settings.value.getNote },
     }
   }

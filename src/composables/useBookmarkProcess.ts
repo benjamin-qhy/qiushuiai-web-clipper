@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { browser } from 'wxt/browser'
 import type { Browser } from 'wxt/browser'
 import { getSettings } from '../storage/settings'
-import { createAIProvider } from '../ai/index'
+import { createDefaultAIProvider } from '../ai/index'
 import { fetchPageMeta } from '../bookmark/meta'
 import type { PageMeta } from '../bookmark/meta'
 import { processBookmark } from '../bookmark/classify'
@@ -74,7 +74,7 @@ export function useBookmarkProcess() {
     barId: string,
     inboxName: string,
     bookmarkSystemPrompt: string,
-    aiProvider: ReturnType<typeof createAIProvider>,
+    aiProvider: ReturnType<typeof createDefaultAIProvider>,
   ): Promise<void> {
     const children = await browser.bookmarks.getChildren(inboxId)
     const bookmarks = children.filter((c: BookmarkNode) => !!c.url)
@@ -175,7 +175,7 @@ export function useBookmarkProcess() {
       }
 
       const inbox = await findOrCreateInbox(settings.bookmarkInboxFolder, bar.id)
-      const aiProvider = createAIProvider(settings.aiConfig)
+      const aiProvider = createDefaultAIProvider(settings)
       await processInbox(inbox.id, inbox.parentId ?? bar.id, settings.bookmarkInboxFolder, settings.bookmarkSystemPrompt, aiProvider)
 
       state.value = 'done'
@@ -236,7 +236,7 @@ export function useBookmarkProcess() {
         isMoving.value = false
       }
 
-      const aiProvider = createAIProvider(settings.aiConfig)
+      const aiProvider = createDefaultAIProvider(settings)
       await processInbox(inbox.id, inbox.parentId ?? bar.id, settings.bookmarkInboxFolder, settings.bookmarkSystemPrompt, aiProvider)
 
       state.value = 'done'

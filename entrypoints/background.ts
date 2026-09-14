@@ -1,7 +1,7 @@
 import { browser } from 'wxt/browser'
 import { getSettings } from '../src/storage/settings'
 import type { ProcessingStatus } from '../src/storage/bookmarks'
-import { createAIProvider } from '../src/ai/index'
+import { createDefaultAIProvider } from '../src/ai/index'
 import { fetchPageMeta } from '../src/bookmark/meta'
 import { processBookmark } from '../src/bookmark/classify'
 import { isDouyinFavoritesPage } from '../src/douyin/collect'
@@ -49,7 +49,7 @@ async function triggerProcessing(): Promise<void> {
 
     processingStatus.total = bookmarks.length
 
-    const aiProvider = createAIProvider(settings.aiConfig)
+    const aiProvider = createDefaultAIProvider(settings)
 
     for (const bm of bookmarks) {
       if (!bm.url) continue

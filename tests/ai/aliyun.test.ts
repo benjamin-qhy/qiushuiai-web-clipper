@@ -60,6 +60,64 @@ describe('OpenAICompatibleProvider', () => {
     await expect(provider.complete('prompt')).rejects.toThrow('AI API error: 401')
   })
 
+  it('forwards an enabled reasoning level to OpenAI-compatible services', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'OK' } }] }),
+    })
+    global.fetch = fetchMock
+    const provider = new OpenAICompatibleProvider({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'test-key',
+      model: 'test-model',
+    }, 'high')
+
+    await provider.complete('prompt')
+
+    const request = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(request.body as string)).toMatchObject({
+      enable_thinking: true,
+      reasoning_effort: 'high',
+    })
+  })
+
+  it('does not force JSON output for a plain-text test instruction', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '连接成功' } }] }),
+    })
+    global.fetch = fetchMock
+    const provider = new OpenAICompatibleProvider({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'test-key',
+      model: 'test-model',
+    })
+
+    await provider.complete('请回复：连接成功', undefined, { responseFormat: 'text' })
+
+    const request = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(request.body as string)).not.toHaveProperty('response_format')
+  })
+
+  it('includes the upstream error message when a request fails', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({
+        error: { message: "'messages' must contain the word 'json'" },
+      }),
+    } as unknown as Response)
+    const provider = new OpenAICompatibleProvider({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'test-key',
+      model: 'test-model',
+    })
+
+    await expect(provider.complete('prompt')).rejects.toThrow(
+      "AI API error: 400 - 'messages' must contain the word 'json'",
+    )
+  })
+
   it('tests model availability with a lightweight chat completion', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

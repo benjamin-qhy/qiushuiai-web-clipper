@@ -4,17 +4,15 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSettings } from '../../src/composables/useSettings'
 import { useVaultStore } from '../../src/composables/useVaultStore'
 import { computeSharedImagePath } from '../../src/filesystem/paths'
+import ModelConfigSection from './components/ModelConfigSection.vue'
 
 const { settings, isSaving, saveStatus, load, save } = useSettings()
 const vault = useVaultStore()
 
 const showSecret = ref(false)
-const showAISecret = ref(false)
 const showGetNoteSecret = ref(false)
 const testStatus = ref<'idle' | 'testing' | 'ok' | 'fail'>('idle')
 const testError = ref('')
-const aiTestStatus = ref<'idle' | 'testing' | 'ok' | 'fail'>('idle')
-const aiTestError = ref('')
 const dirPickerError = ref('')
 
 const ossRegions = [
@@ -29,7 +27,7 @@ const ossRegions = [
 const version = browser.runtime.getManifest().version
 const mainEl = ref<HTMLElement | null>(null)
 const activeSection = ref('vault')
-const sectionIds = ['vault', 'images', 'get-note', 'org']
+const sectionIds = ['vault', 'images', 'get-note', 'models']
 
 let observer: IntersectionObserver | null = null
 
@@ -90,11 +88,6 @@ const sharedImagePathPreview = computed(() => {
 function resetTestStatus() {
   testStatus.value = 'idle'
   testError.value = ''
-}
-
-function resetAITestStatus() {
-  aiTestStatus.value = 'idle'
-  aiTestError.value = ''
 }
 
 function handleVaultAction() {
@@ -170,17 +163,6 @@ watch(
   },
 )
 
-watch(
-  () => [
-    settings.value.aiConfig.baseUrl,
-    settings.value.aiConfig.apiKey,
-    settings.value.aiConfig.model,
-  ],
-  () => {
-    resetAITestStatus()
-  },
-)
-
 async function testConnection() {
   const config = settings.value.aliyunOSS
   if (
@@ -216,31 +198,6 @@ async function testConnection() {
   }
 }
 
-async function testAIModel() {
-  const config = settings.value.aiConfig
-  if (!config.baseUrl.trim() || !config.apiKey.trim() || !config.model.trim()) {
-    aiTestStatus.value = 'fail'
-    aiTestError.value = '请先填写完整的 AI 配置信息'
-    return
-  }
-
-  aiTestStatus.value = 'testing'
-  aiTestError.value = ''
-
-  try {
-    const { createAIProvider } = await import('../../src/ai')
-    const provider = createAIProvider({
-      baseUrl: config.baseUrl.trim(),
-      apiKey: config.apiKey.trim(),
-      model: config.model.trim(),
-    })
-    await provider.testConnection()
-    aiTestStatus.value = 'ok'
-  } catch (error) {
-    aiTestStatus.value = 'fail'
-    aiTestError.value = error instanceof Error ? error.message : String(error)
-  }
-}
 </script>
 
 <template>
@@ -256,8 +213,12 @@ async function testAIModel() {
         <a class="nav-item" :class="{ active: activeSection === 'images' }" href="#section-images" @click.prevent="scrollTo('images')">图片</a>
         <div class="nav-group-label">同步</div>
         <a class="nav-item" :class="{ active: activeSection === 'get-note' }" href="#section-get-note" @click.prevent="scrollTo('get-note')">Get 笔记</a>
-        <div class="nav-group-label">书签</div>
-        <a class="nav-item" :class="{ active: activeSection === 'org' }" href="#section-org" @click.prevent="scrollTo('org')">整理</a>
+        <div class="nav-group-label">AI</div>
+        <a class="nav-item" :class="{ active: activeSection === 'models' }" href="#section-models" @click.prevent="scrollTo('models')">模型配置</a>
+        <div class="bookmark-settings-nav feature-hidden">
+          <div class="nav-group-label">书签</div>
+          <a class="nav-item" :class="{ active: activeSection === 'org' }" href="#section-org" @click.prevent="scrollTo('org')">整理</a>
+        </div>
       </div>
       <div class="nav-footer">v{{ version }}</div>
     </nav>
@@ -432,8 +393,16 @@ async function testAIModel() {
 
       <div class="section-divider"></div>
 
+      <ModelConfigSection
+        v-model:platforms="settings.aiPlatforms"
+        v-model:last-used-model="settings.lastUsedAIModel"
+        @save="save"
+      />
+
+      <div class="section-divider"></div>
+
       <!-- Organization -->
-      <section id="section-org" class="settings-section">
+      <section id="section-org" class="settings-section feature-hidden">
         <div class="section-header">
           <h2 class="section-title">整理</h2>
           <p class="section-desc">书签整理配置</p>
@@ -452,22 +421,6 @@ async function testAIModel() {
           <p class="field-hint">整理后的书签笔记将保存到笔记库下的此子目录中。</p>
         </div>
         <div class="field">
-          <label class="field-label" for="ai-base-url">AI 接口地址</label>
-          <input id="ai-base-url" v-model="settings.aiConfig.baseUrl" class="field-input" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
-          <p class="field-hint">支持任意 OpenAI 兼容接口</p>
-        </div>
-        <div class="field">
-          <label class="field-label" for="ai-api-key">AI 密钥</label>
-          <div class="secret-row">
-            <input id="ai-api-key" v-model="settings.aiConfig.apiKey" :type="showAISecret ? 'text' : 'password'" class="field-input" autocomplete="off" />
-            <button class="btn-secondary" type="button" @click="showAISecret = !showAISecret">{{ showAISecret ? '隐藏' : '显示' }}</button>
-          </div>
-        </div>
-        <div class="field">
-          <label class="field-label" for="ai-model">AI 模型名称</label>
-          <input id="ai-model" v-model="settings.aiConfig.model" class="field-input" placeholder="qwen-long" />
-        </div>
-        <div class="field">
           <label class="field-label" for="ai-system-prompt">系统提示词</label>
           <textarea
             id="ai-system-prompt"
@@ -476,13 +429,6 @@ async function testAIModel() {
             rows="4"
           />
           <p class="field-hint">文件夹结构和输出格式由系统自动附加，此处可追加自定义指令。</p>
-        </div>
-        <div class="field test-row">
-          <button class="btn-secondary" type="button" :disabled="aiTestStatus === 'testing'" @click="testAIModel">
-            {{ aiTestStatus === 'testing' ? '测试中…' : '测试模型' }}
-          </button>
-          <span v-if="aiTestStatus === 'ok'" class="status-ok">✓ 模型可用</span>
-          <span v-else-if="aiTestStatus === 'fail'" class="status-fail">✗ {{ aiTestError }}</span>
         </div>
         <p v-if="dirPickerError" class="status-fail field-inline-error">{{ dirPickerError }}</p>
       </section>
@@ -741,4 +687,5 @@ async function testAIModel() {
   gap: 12px;
   padding: 24px 40px 40px;
 }
+.feature-hidden { display: none; }
 </style>

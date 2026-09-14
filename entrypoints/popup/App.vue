@@ -202,7 +202,7 @@ async function handleSubDirBlur() {
         <span class="header-brand">{{ sourceLabel }}</span>
         <span class="header-version">v{{ version }}</span>
         <button class="btn-settings" @click="openSettings">设置</button>
-        <button class="btn-bookmarks" @click="openBookmarks">标签管理</button>
+        <button class="btn-bookmarks feature-hidden" @click="openBookmarks">标签管理</button>
       </div>
 
       <div class="doc-meta">
@@ -377,6 +377,7 @@ async function handleSubDirBlur() {
   flex-shrink: 0;
 }
 .btn-bookmarks:hover { opacity: 0.85; }
+.feature-hidden { display: none; }
 
 /* Doc title area */
 .doc-meta { padding: 10px 0 0; flex-shrink: 0; }

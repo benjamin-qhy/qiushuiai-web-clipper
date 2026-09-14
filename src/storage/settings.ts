@@ -15,6 +15,19 @@ export interface AIConfig {
   model: string
 }
 
+export interface AIPlatformConfig {
+  id: string
+  provider: string
+  apiKey: string
+  baseUrl?: string
+  customModels: string[]
+}
+
+export interface AIModelSelection {
+  platformId: string
+  modelId: string
+}
+
 export interface GetNoteConfig {
   clientId: string
   authToken: string
@@ -28,7 +41,8 @@ export interface Settings {
   imageLocalDir: string
   ossProvider: 'aliyun'
   aliyunOSS: AliyunOSSConfig
-  aiConfig: AIConfig
+  aiPlatforms: AIPlatformConfig[]
+  lastUsedAIModel: AIModelSelection | null
   getNote: GetNoteConfig
   bookmarkInboxFolder: string
   bookmarkSubDir: string
@@ -51,11 +65,8 @@ export const DEFAULT_SETTINGS: Settings = {
     prefix: 'qiushui-web-clipper',
     customDomain: '',
   },
-  aiConfig: {
-    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    apiKey: '',
-    model: 'qwen-long',
-  },
+  aiPlatforms: [],
+  lastUsedAIModel: null,
   getNote: {
     clientId: '',
     authToken: '',
@@ -68,12 +79,38 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export async function getSettings(): Promise<Settings> {
   const result = await browser.storage.local.get(STORAGE_KEY)
-  const stored = (result[STORAGE_KEY] ?? {}) as Partial<Settings>
+  const stored = (result[STORAGE_KEY] ?? {}) as Partial<Settings> & { aiConfig?: AIConfig }
+  const { aiConfig: legacyAIConfig, ...currentSettings } = stored
+  const hasStoredPlatforms = Array.isArray(stored.aiPlatforms)
+  const aiPlatforms = hasStoredPlatforms
+    ? stored.aiPlatforms!.map(platform => ({
+        ...platform,
+        customModels: [...(platform.customModels ?? [])],
+      }))
+    : legacyAIConfig
+      ? [{
+          id: 'legacy-openai-compatible',
+          provider: 'openai-compatible',
+          apiKey: legacyAIConfig.apiKey,
+          baseUrl: legacyAIConfig.baseUrl,
+          customModels: legacyAIConfig.model ? [legacyAIConfig.model] : [],
+        }]
+      : []
+  const lastUsedAIModel = stored.lastUsedAIModel
+    ?? (!hasStoredPlatforms && legacyAIConfig?.model
+      ? { platformId: 'legacy-openai-compatible', modelId: legacyAIConfig.model }
+      : null)
+  const validLastUsedAIModel = lastUsedAIModel
+    && aiPlatforms.some(platform => platform.id === lastUsedAIModel.platformId)
+    ? lastUsedAIModel
+    : null
+
   return {
     ...DEFAULT_SETTINGS,
-    ...stored,
+    ...currentSettings,
     aliyunOSS: { ...DEFAULT_SETTINGS.aliyunOSS, ...stored.aliyunOSS },
-    aiConfig: { ...DEFAULT_SETTINGS.aiConfig, ...stored.aiConfig },
+    aiPlatforms,
+    lastUsedAIModel: validLastUsedAIModel,
     getNote: { ...DEFAULT_SETTINGS.getNote, ...stored.getNote },
   }
 }

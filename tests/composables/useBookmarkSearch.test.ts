@@ -20,7 +20,7 @@ vi.mock('../../src/storage/settings', () => ({
 }))
 
 vi.mock('../../src/ai', () => ({
-  createAIProvider: () => ({
+  createDefaultAIProvider: () => ({
     complete: aiCompleteMock,
   }),
 }))
@@ -48,11 +48,14 @@ describe('useBookmarkSearch.aiSearch', () => {
     ])
 
     getSettingsMock.mockResolvedValue({
-      aiConfig: {
-        baseUrl: 'https://api.example.com/v1',
+      aiPlatforms: [{
+        id: 'custom-1',
+        provider: 'openai-compatible',
         apiKey: 'test-key',
-        model: 'test-model',
-      },
+        baseUrl: 'https://api.example.com/v1',
+        customModels: ['test-model'],
+      }],
+      lastUsedAIModel: { platformId: 'custom-1', modelId: 'test-model' },
     })
 
     aiCompleteMock.mockResolvedValue('{"indices":[0]}')
