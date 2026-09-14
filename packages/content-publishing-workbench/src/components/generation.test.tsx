@@ -4,14 +4,28 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { ContentPublishingWorkbench } from '../ContentPublishingWorkbench'
 import { createDraft, type WorkbenchAdapters } from '../types'
 
+vi.mock('react-resizable-panels', () => ({
+  Group: ({ children, className }: React.PropsWithChildren<{ className?: string }>) => <div className={className}>{children}</div>,
+  Panel: ({ children, className }: React.PropsWithChildren<{ className?: string }>) => <div className={className}>{children}</div>,
+  Separator: ({ className, 'aria-label': ariaLabel }: { className?: string; 'aria-label'?: string }) =>
+    <div className={className} role="separator" aria-label={ariaLabel} />,
+  useGroupRef: () => ({ current: null }),
+}))
+
 afterEach(cleanup)
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn()
+  vi.stubGlobal('ResizeObserver', class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  })
 })
 
 afterAll(() => {
   Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
+  vi.unstubAllGlobals()
 })
 
 const snapshot = {
@@ -39,6 +53,10 @@ function createAdapters(): WorkbenchAdapters {
     }),
     generate: vi.fn().mockResolvedValue('## 创作稿'),
     saveDraft: vi.fn().mockResolvedValue(undefined),
+    loadLayout: vi.fn().mockResolvedValue({
+      sizes: [30, 35, 35], visible: { source: true, composer: true, output: true }, activePane: 'composer',
+    }),
+    saveLayout: vi.fn().mockResolvedValue(undefined),
     openSettings: vi.fn().mockResolvedValue(undefined),
   }
 }
@@ -121,7 +139,7 @@ describe('AI generation controls', () => {
     vi.mocked(adapters.listTemplates).mockResolvedValue([])
     const view = render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
 
-    expect(screen.getByText('正在加载模型与提示词…')).not.toBeNull()
+    expect(await screen.findByText('正在加载模型与提示词…')).not.toBeNull()
     await act(async () => resolveModels([{
       platformId: 'custom-1', modelId: 'model-a', reasoning: 'off', label: 'Model A', groupLabel: '自定义',
       reasoningLevels: ['off'],
@@ -154,5 +172,43 @@ describe('AI generation controls', () => {
     render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
 
     await waitFor(() => expect(screen.getByRole('status').textContent).toBe('草稿保存失败'))
+  })
+
+  it('loads and persists workspace visibility preferences', async () => {
+    const adapters = createAdapters()
+    render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
+
+    await waitFor(() => expect(adapters.loadLayout).toHaveBeenCalledOnce())
+    fireEvent.click(screen.getByRole('button', { name: '隐藏原文' }))
+
+    expect(adapters.saveLayout).toHaveBeenCalledWith({
+      sizes: [30, 35, 35],
+      visible: { source: false, composer: true, output: true },
+      activePane: 'composer',
+    })
+  })
+
+  it('waits for stored layout hydration before enabling layout changes', async () => {
+    const adapters = createAdapters()
+    let resolveLayout!: (layout: Awaited<ReturnType<WorkbenchAdapters['loadLayout']>>) => void
+    vi.mocked(adapters.loadLayout).mockReturnValue(new Promise(resolve => { resolveLayout = resolve }))
+    render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
+
+    expect(screen.getByText('正在恢复工作台布局…')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: '隐藏原文' })).toBeNull()
+
+    const restoredLayout = {
+      sizes: [45, 25, 30] as [number, number, number],
+      visible: { source: true, composer: true, output: true },
+      activePane: 'source' as const,
+    }
+    resolveLayout(restoredLayout)
+    fireEvent.click(await screen.findByRole('button', { name: '隐藏原文' }))
+
+    expect(adapters.saveLayout).toHaveBeenCalledWith({
+      ...restoredLayout,
+      visible: { source: false, composer: true, output: true },
+      activePane: 'composer',
+    })
   })
 })

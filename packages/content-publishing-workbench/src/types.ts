@@ -1,6 +1,7 @@
 export type ReasoningLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
 export type CardThemeId = 'basic' | 'tech' | 'minimal' | 'border' | 'journal' | 'soft'
+export type WorkbenchPaneId = 'source' | 'composer' | 'output'
 
 export interface SourceSnapshot {
   id: string
@@ -41,6 +42,13 @@ export interface PublisherDraft {
 export interface PublisherLayout {
   sizes: [number, number, number]
   visible: { source: boolean; composer: boolean; output: boolean }
+  activePane: WorkbenchPaneId
+}
+
+export const DEFAULT_PUBLISHER_LAYOUT: PublisherLayout = {
+  sizes: [30, 35, 35],
+  visible: { source: true, composer: true, output: true },
+  activePane: 'composer',
 }
 
 export interface ModelChoice extends ModelSelection {
@@ -67,6 +75,8 @@ export interface WorkbenchAdapters {
   getDefaultModel(): Promise<ModelSelection | null>
   generate(input: GenerateInput): Promise<string>
   saveDraft(draft: PublisherDraft): Promise<void>
+  loadLayout(): Promise<PublisherLayout>
+  saveLayout(layout: PublisherLayout): Promise<void>
   openSettings(): Promise<void>
 }
 

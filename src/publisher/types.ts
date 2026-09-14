@@ -6,4 +6,5 @@ export type {
   PublisherLayout,
   ReasoningLevel,
   SourceSnapshot,
+  WorkbenchPaneId,
 } from '@qiushui/content-publishing-workbench'
