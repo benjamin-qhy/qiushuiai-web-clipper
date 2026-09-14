@@ -187,9 +187,10 @@ Obsidian Vault（File System Access API）
 
 - `src/publisher/source.ts` — 将结构化文档块或通用网页 Markdown 转为独立原文快照，元数据不写入正文
 - `src/publisher/drafts.ts` — 按快照 ID 保存发布草稿，并维护来源 URL 与活动标签页的草稿索引；读取时迁移旧草稿；全局保存三栏的宽度、显隐和活动区域，并修复无效的旧布局
-- `packages/content-publishing-workbench/` — 可移植的 React + shadcn 工作台包；提供原文预览、模型/推理与模板/手工创作指令、AI 生成、覆盖确认、草稿保存状态及语义化 Markdown 编辑/预览，关闭时会立即补存最后一次编辑；三栏按容器宽度切换为宽屏三栏、中屏活动栏加相邻栏、窄屏单栏标签页，支持拖动、隐藏、恢复和重置；后续卡片样式与导出能力均归此包
+- `packages/content-publishing-workbench/` — 可移植的 React + shadcn 工作台包；提供原文预览、模型/推理与模板/手工创作指令、AI 生成、覆盖确认、草稿保存状态及语义化 Markdown 编辑/预览，关闭时会立即补存最后一次编辑；三栏按容器宽度切换为宽屏三栏、中屏活动栏加相邻栏、窄屏单栏标签页，支持拖动、隐藏、恢复和重置；成品区提供基础、科技、简约、边框、手帐、柔和六种 1242×1656 小红书卡片样式、可选封面、重点标注、分页导航和虚拟化预览，主题切换不会改变分页计划
 - `packages/content-publishing-workbench/src/markdown/` — 将卡片 Markdown 解析为与视觉样式无关的语义块；支持 GFM 表格、标题、段落、列表、引用、链接、代码、粗体、斜体、`==重点==`、分隔线和 `<!-- pagebreak -->`
-- `packages/content-publishing-workbench/src/layout/` — 纯异步分页计划与隐藏 DOM 测量台；按 1242×1656 卡片几何和最终 CSS 测量整张候选页块栈，优先块边界和标题保护，对超高文本及列表、引用、代码、表格做语义安全拆分，不限制总页数
+- `packages/content-publishing-workbench/src/layout/` — 纯异步分页计划与隐藏 DOM 测量台；按 1242×1656 卡片几何和与主题无关的排版 CSS 测量整张候选页块栈，优先块边界和标题保护，对超高文本及列表、引用、代码、表格做语义安全拆分，不限制总页数；编辑触发重排时会取消尚未完成的旧测量，排版失败会显示错误并允许重试
+- `packages/content-publishing-workbench/src/card/` — 六种卡片主题目录与最终卡片画布；内容页共用同一分页计划，可在其前附加默认关闭的封面而不修改内容页，页脚显示当前页码
 
 **书签模块 `src/bookmark/`**
 

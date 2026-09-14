@@ -52,4 +52,17 @@ describe('MeasureStage', () => {
     await expect(ref.current!.measure([block])).resolves.toBe(42)
     expect(vi.mocked(HTMLElement.prototype.getBoundingClientRect)).toHaveBeenCalledTimes(calls)
   })
+
+  it('cancels a pending measurement before accepting newer content', async () => {
+    const animationFrame = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(() => 1)
+    const ref = createRef<MeasureStageHandle>()
+    render(<MeasureStage ref={ref} themeId="minimal" />)
+
+    let pending!: Promise<number>
+    await act(async () => { pending = ref.current!.measure([block]) })
+    ref.current!.cancelPending()
+
+    await expect(pending).rejects.toThrow('superseded')
+    animationFrame.mockRestore()
+  })
 })

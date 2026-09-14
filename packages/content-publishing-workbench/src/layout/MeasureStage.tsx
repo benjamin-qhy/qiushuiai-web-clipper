@@ -19,6 +19,7 @@ export interface CardGeometry {
 export interface MeasureStageHandle {
   measure(blocks: SemanticBlock[]): Promise<number>
   clearCache(): void
+  cancelPending(): void
 }
 
 interface MeasureStageProps {
@@ -90,6 +91,11 @@ export const MeasureStage = forwardRef<MeasureStageHandle, MeasureStageProps>(fu
     },
     clearCache() {
       cacheRef.current.clear()
+    },
+    cancelPending() {
+      pendingRef.current?.reject(new Error('Measurement was superseded'))
+      pendingRef.current = null
+      setRequest(null)
     },
   }), [geometry, renderBlock, themeId])
 
