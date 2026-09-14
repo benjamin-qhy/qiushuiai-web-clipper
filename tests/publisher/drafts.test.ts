@@ -77,6 +77,35 @@ describe('publisher drafts', () => {
     expect(stored).not.toBe(draft)
   })
 
+  it('migrates a draft created before instruction and model fields existed', async () => {
+    mockStorage['publisher-draft:snapshot-1'] = {
+      snapshot,
+      draftMarkdown: '已有创作稿',
+      themeId: 'minimal',
+      coverEnabled: false,
+      currentPage: 0,
+    }
+
+    expect(await getPublisherDraft('snapshot-1')).toMatchObject({
+      draftMarkdown: '已有创作稿',
+      instruction: { mode: 'template', templateId: '', manualContent: '' },
+      model: null,
+    })
+  })
+
+  it('migrates the previous manual instruction shape without losing its content', async () => {
+    mockStorage['publisher-draft:snapshot-1'] = {
+      ...createPublisherDraft(snapshot),
+      instruction: { mode: 'manual', content: '旧版手工提示词' },
+    }
+
+    expect((await getPublisherDraft('snapshot-1'))?.instruction).toEqual({
+      mode: 'manual',
+      templateId: '',
+      manualContent: '旧版手工提示词',
+    })
+  })
+
   it('maps the active browser tab to its current draft', async () => {
     await setActivePublisherDraft(42, 'snapshot-1')
     expect(await getActivePublisherDraftId(42)).toBe('snapshot-1')

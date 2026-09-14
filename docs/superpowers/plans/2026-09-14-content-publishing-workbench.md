@@ -145,7 +145,7 @@ export interface SourceSnapshot {
 export interface WorkbenchDraft {
   snapshot: SourceSnapshot
   draftMarkdown: string
-  instruction: { mode: 'template'; templateId: string } | { mode: 'manual'; content: string }
+  instruction: { mode: 'template' | 'manual'; templateId: string; manualContent: string }
   model: { platformId: string; modelId: string; reasoning: ReasoningLevel }
   themeId: CardThemeId
   coverEnabled: boolean

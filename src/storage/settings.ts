@@ -1,4 +1,5 @@
 import { browser } from 'wxt/browser'
+import type { AIReasoningLevel } from '../ai/types'
 
 export interface AliyunOSSConfig {
   accessKeyId: string
@@ -49,6 +50,7 @@ export interface Settings {
   aliyunOSS: AliyunOSSConfig
   aiPlatforms: AIPlatformConfig[]
   lastUsedAIModel: AIModelSelection | null
+  lastUsedAIReasoning: AIReasoningLevel
   systemPrompts: SystemPrompt[]
   getNote: GetNoteConfig
   bookmarkInboxFolder: string
@@ -74,6 +76,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   aiPlatforms: [],
   lastUsedAIModel: null,
+  lastUsedAIReasoning: 'off',
   systemPrompts: [],
   getNote: {
     clientId: '',
