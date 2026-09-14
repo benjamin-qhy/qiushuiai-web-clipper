@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Textarea } from './components/ui/textarea'
 import { MarkdownEditor } from './components/MarkdownEditor'
 import { ResponsiveWorkspace } from './components/ResponsiveWorkspace'
+import { CardPreview } from './components/CardPreview'
 
 export interface ContentPublishingWorkbenchProps {
   initialDraft: PublisherDraft
@@ -308,10 +309,17 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
 
         output: <section className="publishing-workbench__pane" aria-labelledby="output-pane-title">
           <PaneHeader index="03" label="OUTPUT" title="发布成品" titleId="output-pane-title" />
-          <div className="publishing-workbench__output-placeholder">
-            <p>小红书卡片预览</p>
-            <span>卡片样式与分页将在下一阶段接入。</span>
-          </div>
+          <CardPreview
+            markdown={draft.draftMarkdown}
+            title={draft.snapshot.meta.title}
+            meta={draft.snapshot.meta}
+            themeId={draft.themeId}
+            coverEnabled={draft.coverEnabled}
+            currentPage={draft.currentPage}
+            onThemeChange={themeId => setDraft(current => ({ ...current, themeId }))}
+            onCoverChange={coverEnabled => setDraft(current => ({ ...current, coverEnabled, currentPage: 0 }))}
+            onPageChange={currentPage => setDraft(current => ({ ...current, currentPage }))}
+          />
         </section>,
       }} /> : <div className="publishing-workbench__layout-loading" role="status">正在恢复工作台布局…</div>}
 
