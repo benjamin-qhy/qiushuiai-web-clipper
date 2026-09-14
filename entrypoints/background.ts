@@ -105,7 +105,8 @@ async function syncTabAction(tabId: number, url?: string): Promise<void> {
 
   await sidePanel.setOptions({
     tabId,
-    enabled: false,
+    enabled: true,
+    path: `publisher-sidepanel.html?tabId=${tabId}`,
   })
 }
 
