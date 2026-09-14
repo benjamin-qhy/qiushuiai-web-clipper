@@ -403,7 +403,7 @@ async function testConnection() {
 
       <div class="section-divider"></div>
 
-      <SystemPromptSection v-model:prompts="settings.systemPrompts" />
+      <SystemPromptSection v-model:prompts="settings.systemPrompts" @save="save" />
 
       <div class="section-divider"></div>
 

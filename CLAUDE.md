@@ -124,7 +124,7 @@ Obsidian Vault（File System Access API）
 - `entrypoints/douyin-sidepanel/App.vue` — 抖音收藏批量导入侧边栏；当前页为抖音收藏页时点击插件图标直接打开，支持抓取、勾选、刷新和批量保存到 Get 笔记
 - `entrypoints/options/App.vue` — 设置页（subDir、imageMode、OSS 配置、Get笔记配置、模型配置、系统提示词管理；书签配置目前仅隐藏）
 - `entrypoints/options/components/ModelConfigSection.vue` — 多平台模型配置与测试指令界面；平台不设数量上限，同一平台只配置一次；测试区用按平台分组的单一模型下拉框，测试成功后记录最后使用模型
-- `entrypoints/options/components/SystemPromptSection.vue` — 系统提示词管理界面；显示本地提示词列表，支持标题和内容必填的新建与编辑，不删除也不接入 AI 请求
+- `entrypoints/options/components/SystemPromptSection.vue` — 系统提示词管理界面；显示本地提示词列表，编辑表单紧随对应条目，标题和内容必填，新增或编辑成功后立即持久化；不删除也不接入 AI 请求
 - `entrypoints/bookmarks/App.vue` — 书签管理页，含文件夹树、书签列表、AI 分类侧边栏；当前没有 UI 入口，但页面和数据均保留；中间书签栏支持 `原始 / 域名` 排序切换
 - `entrypoints/background.ts` — 后台 Service Worker；处理 `PROCESS_BOOKMARKS`、`GET_PROCESSING_STATUS`，并按当前 tab 动态切换 popup / 抖音收藏侧边栏入口
 
