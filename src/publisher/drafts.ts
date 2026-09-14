@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser'
-import type { PublisherDraft, PublisherLayout, SourceSnapshot } from './types'
+import { createDraft } from '@qiushui/content-publishing-workbench'
+import type { DraftInstruction, PublisherDraft, PublisherLayout, SourceSnapshot } from './types'
 
 const draftKey = (snapshotId: string) => `publisher-draft:${snapshotId}`
 const latestSourceKey = (sourceUrl: string) => `publisher-latest:${sourceUrl}`
@@ -12,14 +13,26 @@ const defaultLayout: PublisherLayout = {
   visible: { source: true, composer: true, output: true },
 }
 
+function normalizePublisherDraft(draft: PublisherDraft): PublisherDraft {
+  const defaults = createDraft(draft.snapshot)
+  const storedInstruction = draft.instruction as DraftInstruction | undefined | { mode: 'template'; templateId: string } | { mode: 'manual'; content: string }
+  const instruction: DraftInstruction = !storedInstruction
+    ? defaults.instruction
+    : 'manualContent' in storedInstruction
+      ? storedInstruction
+      : storedInstruction.mode === 'manual'
+        ? { mode: 'manual', templateId: '', manualContent: storedInstruction.content }
+        : { mode: 'template', templateId: storedInstruction.templateId, manualContent: '' }
+  return structuredClone({
+    ...defaults,
+    ...draft,
+    instruction,
+    model: draft.model ?? null,
+  })
+}
+
 export function createPublisherDraft(snapshot: SourceSnapshot): PublisherDraft {
-  return {
-    snapshot: structuredClone(snapshot),
-    draftMarkdown: '',
-    themeId: 'minimal',
-    coverEnabled: false,
-    currentPage: 0,
-  }
+  return createDraft(snapshot)
 }
 
 export async function savePublisherDraft(draft: PublisherDraft): Promise<void> {
@@ -33,7 +46,7 @@ export async function getPublisherDraft(snapshotId: string): Promise<PublisherDr
   const key = draftKey(snapshotId)
   const result = await browser.storage.local.get(key)
   const draft = result[key] as PublisherDraft | undefined
-  return draft ? structuredClone(draft) : null
+  return draft ? normalizePublisherDraft(draft) : null
 }
 
 export async function waitForPublisherDraft(
@@ -49,7 +62,7 @@ export async function waitForPublisherDraft(
       settled = true
       globalThis.clearTimeout(timeout)
       browser.storage.onChanged.removeListener(onChanged)
-      resolve(draft ? structuredClone(draft) : null)
+      resolve(draft ? normalizePublisherDraft(draft) : null)
     }
     const onChanged = (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
       const draft = changes[key]?.newValue as PublisherDraft | undefined

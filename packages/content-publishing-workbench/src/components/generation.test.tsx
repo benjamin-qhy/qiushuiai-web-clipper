@@ -1,0 +1,158 @@
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { ContentPublishingWorkbench } from '../ContentPublishingWorkbench'
+import { createDraft, type WorkbenchAdapters } from '../types'
+
+afterEach(cleanup)
+
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn()
+})
+
+afterAll(() => {
+  Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
+})
+
+const snapshot = {
+  id: 'snapshot-1',
+  extractedAt: '2026-09-14T06:00:00.000Z',
+  markdown: '# 原文',
+  meta: { title: '标题', source: 'https://example.com', created: '2026-09-14' },
+}
+
+function createAdapters(): WorkbenchAdapters {
+  return {
+    listModels: vi.fn().mockResolvedValue([{
+      platformId: 'custom-1',
+      modelId: 'model-a',
+      reasoning: 'off',
+      label: 'Model A',
+      groupLabel: '自定义',
+      reasoningLevels: ['off', 'low', 'high'],
+    }]),
+    listTemplates: vi.fn().mockResolvedValue([
+      { id: 'prompt-1', title: '知识卡片', content: '提炼核心观点。' },
+    ]),
+    getDefaultModel: vi.fn().mockResolvedValue({
+      platformId: 'custom-1', modelId: 'model-a', reasoning: 'low',
+    }),
+    generate: vi.fn().mockResolvedValue('## 创作稿'),
+    saveDraft: vi.fn().mockResolvedValue(undefined),
+    openSettings: vi.fn().mockResolvedValue(undefined),
+  }
+}
+
+describe('AI generation controls', () => {
+  it('generates editable Markdown from a selected prompt template', async () => {
+    const adapters = createAdapters()
+    render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
+
+    fireEvent.click(await screen.findByRole('combobox', { name: '系统提示词' }))
+    fireEvent.click(await screen.findByRole('option', { name: '知识卡片' }))
+    fireEvent.click(screen.getByRole('button', { name: '生成创作稿' }))
+
+    await waitFor(() => expect(adapters.generate).toHaveBeenCalledWith({
+      sourceMarkdown: '# 原文',
+      instruction: '提炼核心观点。',
+      model: { platformId: 'custom-1', modelId: 'model-a', reasoning: 'low' },
+    }))
+    expect(await screen.findByDisplayValue('## 创作稿')).not.toBeNull()
+  })
+
+  it('requires confirmation before replacing a non-empty draft', async () => {
+    const adapters = createAdapters()
+    const draft = createDraft(snapshot, {
+      platformId: 'custom-1', modelId: 'model-a', reasoning: 'off',
+    })
+    draft.instruction = { mode: 'template', templateId: 'prompt-1', manualContent: '' }
+    draft.draftMarkdown = '已有内容'
+    render(<ContentPublishingWorkbench initialDraft={draft} adapters={adapters} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: '生成创作稿' }))
+    expect(await screen.findByRole('alertdialog')).not.toBeNull()
+    expect(adapters.generate).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: '确认覆盖' }))
+    await waitFor(() => expect(adapters.generate).toHaveBeenCalledOnce())
+  })
+
+  it('uses a one-off manual system prompt without changing the template list', async () => {
+    const adapters = createAdapters()
+    const user = userEvent.setup()
+    render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
+
+    await user.click(await screen.findByRole('tab', { name: '手工输入' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '手工系统提示词' }), {
+      target: { value: '用故事化语气改写。' },
+    })
+    await user.click(screen.getByRole('tab', { name: '提示词模板' }))
+    await waitFor(() => expect(adapters.saveDraft).toHaveBeenCalledWith(expect.objectContaining({
+      instruction: { mode: 'template', templateId: '', manualContent: '用故事化语气改写。' },
+    })))
+    await user.click(screen.getByRole('tab', { name: '手工输入' }))
+    expect((screen.getByRole('textbox', { name: '手工系统提示词' }) as HTMLTextAreaElement).value)
+      .toBe('用故事化语气改写。')
+    const generateButton = screen.getByRole('button', { name: '生成创作稿' }) as HTMLButtonElement
+    await waitFor(() => expect(generateButton.disabled).toBe(false))
+    fireEvent.click(generateButton)
+
+    await waitFor(() => expect(adapters.generate).toHaveBeenCalledWith(expect.objectContaining({
+      instruction: '用故事化语气改写。',
+    })))
+    expect(adapters.listTemplates).toHaveBeenCalledOnce()
+  })
+
+  it('shows a settings action when no model is configured', async () => {
+    const adapters = createAdapters()
+    vi.mocked(adapters.listModels).mockResolvedValue([])
+    vi.mocked(adapters.getDefaultModel).mockResolvedValue(null)
+    render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: '打开设置' }))
+    expect(adapters.openSettings).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: '生成创作稿' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('shows loading and a settings action when template mode has no usable template', async () => {
+    const adapters = createAdapters()
+    let resolveModels!: (models: Awaited<ReturnType<WorkbenchAdapters['listModels']>>) => void
+    vi.mocked(adapters.listModels).mockReturnValue(new Promise(resolve => { resolveModels = resolve }))
+    vi.mocked(adapters.listTemplates).mockResolvedValue([])
+    const view = render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
+
+    expect(screen.getByText('正在加载模型与提示词…')).not.toBeNull()
+    await act(async () => resolveModels([{
+      platformId: 'custom-1', modelId: 'model-a', reasoning: 'off', label: 'Model A', groupLabel: '自定义',
+      reasoningLevels: ['off'],
+    }]))
+    fireEvent.click(await screen.findByRole('button', { name: '打开设置' }))
+    expect(adapters.openSettings).toHaveBeenCalledOnce()
+    view.unmount()
+  })
+
+  it('falls back from a removed draft model and flushes the latest edit on unmount', async () => {
+    const adapters = createAdapters()
+    const draft = createDraft(snapshot, {
+      platformId: 'removed', modelId: 'removed-model', reasoning: 'max',
+    })
+    const view = render(<ContentPublishingWorkbench initialDraft={draft} adapters={adapters} />)
+
+    const editor = await screen.findByRole('textbox', { name: '创作稿 Markdown' })
+    fireEvent.change(editor, { target: { value: '关闭前最后一次编辑' } })
+    view.unmount()
+
+    await waitFor(() => expect(adapters.saveDraft).toHaveBeenCalledWith(expect.objectContaining({
+      draftMarkdown: '关闭前最后一次编辑',
+      model: { platformId: 'custom-1', modelId: 'model-a', reasoning: 'low' },
+    })))
+  })
+
+  it('reports automatic draft save failures', async () => {
+    const adapters = createAdapters()
+    vi.mocked(adapters.saveDraft).mockRejectedValue(new Error('quota'))
+    render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
+
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('草稿保存失败'))
+  })
+})

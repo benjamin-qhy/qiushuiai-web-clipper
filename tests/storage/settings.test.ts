@@ -41,6 +41,7 @@ describe('getSettings', () => {
     expect(s.getNote.authToken).toBe('')
     expect(s.aiPlatforms).toEqual([])
     expect(s.lastUsedAIModel).toBeNull()
+    expect(s.lastUsedAIReasoning).toBe('off')
     expect(s.systemPrompts).toEqual([])
   })
 
@@ -50,6 +51,14 @@ describe('getSettings', () => {
     expect(s.subDir).toBe('Notes')
     expect(s.imageMode).toBe('oss')
     expect(s.aliyunOSS.region).toBe('oss-cn-hangzhou')
+  })
+
+  it('keeps the last successful reasoning level and migrates older settings to off', async () => {
+    mockStorage['feishu-clipper-settings'] = { lastUsedAIReasoning: 'high' }
+    expect((await getSettings()).lastUsedAIReasoning).toBe('high')
+
+    mockStorage['feishu-clipper-settings'] = { subDir: 'Legacy' }
+    expect((await getSettings()).lastUsedAIReasoning).toBe('off')
   })
 
   it('merges nested get note settings over defaults', async () => {

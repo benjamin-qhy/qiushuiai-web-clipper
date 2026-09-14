@@ -121,7 +121,7 @@ Obsidian Vault（File System Access API）
 - `entrypoints/kdocs.content.ts` — 金山文档 Content Script，注入到 `*.kdocs.cn/l/*`，处理 `EXTRACT_DOC` 和 `DOWNLOAD_IMAGE` 消息
 - `entrypoints/general.content.ts` — 通用网页 Content Script，注入到所有页面（`<all_urls>`），仅处理 `EXTRACT_DOC`（提取页面标题、正文，返回 `DocContent` 中的 `markdown` 字段，而非 `blocks`）
 - `entrypoints/popup/App.vue` — 弹窗 UI，触发提取和保存
-- `entrypoints/publisher-sidepanel/` — 内容发布工作台 React 入口；Chrome 以原生侧边栏打开，Firefox 降级为独立扩展页；从本地草稿恢复无 YAML 的完整原文 Markdown
+- `entrypoints/publisher-sidepanel/` — 内容发布工作台 React 入口；Chrome 以原生侧边栏打开，Firefox 降级为独立扩展页；从本地草稿恢复无 YAML 的完整原文 Markdown，并通过宿主适配器提供模型、提示词、生成和设置入口
 - `entrypoints/douyin-sidepanel/App.vue` — 抖音收藏批量导入侧边栏；当前页为抖音收藏页时点击插件图标直接打开，支持抓取、勾选、刷新和批量保存到 Get 笔记
 - `entrypoints/options/App.vue` — 设置页（subDir、imageMode、OSS 配置、Get笔记配置、模型配置、系统提示词管理；书签配置目前仅隐藏）
 - `entrypoints/options/components/ModelConfigSection.vue` — 多平台模型配置与测试指令界面；平台不设数量上限，同一平台只配置一次；测试区用按平台分组的单一模型下拉框，测试成功后记录最后使用模型
@@ -180,12 +180,14 @@ Obsidian Vault（File System Access API）
 - `pi.ts` — `PiAIProvider` 实现，统一调用 Pi 支持的模型平台；推理默认关闭，也可按模型能力传入推理程度
 - `aliyun.ts` — `OpenAICompatibleProvider` 实现，支持自定义 OpenAI Chat API 兼容服务及可选推理程度；业务调用默认保留 JSON 模式，测试指令使用普通文本模式，并透传上游错误详情
 - `index.ts` — `createAIProvider(platform, modelId, reasoning)` 创建指定模型，`createDefaultAIProvider(settings)` 使用最后一次成功测试的模型
+- `src/publisher/ai.ts` — 内容发布 AI 适配逻辑；仅列出凭据完整的已配置模型、按能力限制推理级别，组合固定 Markdown 输出契约，并仅在非空内容生成成功后基于最新设置保存最近模型与推理
+- `src/publisher/adapters.ts` — 将浏览器设置、AI provider、草稿存储和设置页入口封装为可移植 React 包所需的宿主适配器
 
 **内容发布 `src/publisher/` 与 `packages/content-publishing-workbench/`**
 
 - `src/publisher/source.ts` — 将结构化文档块或通用网页 Markdown 转为独立原文快照，元数据不写入正文
-- `src/publisher/drafts.ts` — 按快照 ID 保存发布草稿，并维护来源 URL 与活动标签页的草稿索引
-- `packages/content-publishing-workbench/` — 可移植的 React + shadcn 工作台包；当前提供原文 Markdown 预览壳，后续创作、分页、样式与导出能力均归此包
+- `src/publisher/drafts.ts` — 按快照 ID 保存发布草稿，并维护来源 URL 与活动标签页的草稿索引；读取时迁移缺少创作指令和模型字段的旧草稿
+- `packages/content-publishing-workbench/` — 可移植的 React + shadcn 工作台包；提供原文预览、模型/推理与模板/手工创作指令、AI 生成、覆盖确认、草稿保存状态及 Markdown 编辑/预览，关闭时会立即补存最后一次编辑；后续分页、样式与导出能力均归此包
 
 **书签模块 `src/bookmark/`**
 
@@ -213,6 +215,7 @@ Obsidian Vault（File System Access API）
 - `MessageRequest / MessageResponse` — Content Script ↔ Popup 通信协议
 - `SourceSnapshot` — 内容发布工作台的只读原文 Markdown 与独立元数据快照
 - `PublisherDraft` — 发布工作台草稿，保存原文快照、创作稿和卡片展示状态
+- `DraftInstruction / ModelSelection / WorkbenchAdapters` — 创作指令、模型选择和宿主能力的可移植工作台契约
 - `PublisherLayout` — 全局三栏宽度与显隐偏好
 - `CardThemeId` — 六种小红书卡片样式标识
 

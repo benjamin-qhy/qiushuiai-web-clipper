@@ -1,8 +1,9 @@
 import { getSupportedThinkingLevels, type ThinkingLevel } from '@earendil-works/pi-ai'
 import { builtinModels } from '@earendil-works/pi-ai/providers/all'
 import type { AIPlatformConfig, Settings } from '../storage/settings'
+import type { AIReasoningLevel } from './types'
 
-export type AIReasoningLevel = 'off' | ThinkingLevel
+export type { AIReasoningLevel } from './types'
 
 export interface AIProviderOption {
   id: string

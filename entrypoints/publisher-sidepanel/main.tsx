@@ -9,8 +9,10 @@ import {
   waitForPublisherDraft,
 } from '../../src/publisher/drafts'
 import type { PublisherDraft } from '../../src/publisher/types'
+import { createPublisherAdapters } from '../../src/publisher/adapters'
 
 const searchParams = new URLSearchParams(window.location.search)
+const adapters = createPublisherAdapters()
 
 async function resolveDraft(): Promise<PublisherDraft | null> {
   const directDraftId = searchParams.get('draftId')
@@ -42,8 +44,8 @@ function PublisherSidePanel() {
 
   return (
     <ContentPublishingWorkbench
-      meta={draft.snapshot.meta}
-      markdown={draft.snapshot.markdown}
+      initialDraft={draft}
+      adapters={adapters}
     />
   )
 }
