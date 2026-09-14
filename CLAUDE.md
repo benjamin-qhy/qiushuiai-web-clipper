@@ -122,8 +122,9 @@ Obsidian Vault（File System Access API）
 - `entrypoints/general.content.ts` — 通用网页 Content Script，注入到所有页面（`<all_urls>`），仅处理 `EXTRACT_DOC`（提取页面标题、正文，返回 `DocContent` 中的 `markdown` 字段，而非 `blocks`）
 - `entrypoints/popup/App.vue` — 弹窗 UI，触发提取和保存
 - `entrypoints/douyin-sidepanel/App.vue` — 抖音收藏批量导入侧边栏；当前页为抖音收藏页时点击插件图标直接打开，支持抓取、勾选、刷新和批量保存到 Get 笔记
-- `entrypoints/options/App.vue` — 设置页（subDir、imageMode、OSS 配置、Get笔记配置、模型配置；书签配置目前仅隐藏）
+- `entrypoints/options/App.vue` — 设置页（subDir、imageMode、OSS 配置、Get笔记配置、模型配置、系统提示词管理；书签配置目前仅隐藏）
 - `entrypoints/options/components/ModelConfigSection.vue` — 多平台模型配置与测试指令界面；平台不设数量上限，同一平台只配置一次；测试区用按平台分组的单一模型下拉框，测试成功后记录最后使用模型
+- `entrypoints/options/components/SystemPromptSection.vue` — 系统提示词管理界面；显示本地提示词列表，支持标题和内容必填的新建与编辑，不删除也不接入 AI 请求
 - `entrypoints/bookmarks/App.vue` — 书签管理页，含文件夹树、书签列表、AI 分类侧边栏；当前没有 UI 入口，但页面和数据均保留；中间书签栏支持 `原始 / 域名` 排序切换
 - `entrypoints/background.ts` — 后台 Service Worker；处理 `PROCESS_BOOKMARKS`、`GET_PROCESSING_STATUS`，并按当前 tab 动态切换 popup / 抖音收藏侧边栏入口
 
@@ -149,7 +150,7 @@ Obsidian Vault（File System Access API）
 
 **存储层 `src/storage/`**
 
-- `settings.ts` — 用 `browser.storage.local` 持久化设置（`Settings` 接口，含多平台 AI 配置、最后使用模型、书签配置和 Get笔记配置）；读取时自动迁移旧版单模型配置
+- `settings.ts` — 用 `browser.storage.local` 持久化设置（`Settings` 接口，含多平台 AI 配置、最后使用模型、系统提示词列表、书签配置和 Get笔记配置）；读取时自动迁移旧版单模型配置
 - `vault.ts` — 用 IndexedDB 持久化 `FileSystemDirectoryHandle`（Obsidian vault 路径）
 - `bookmarks.ts` — 书签数据持久化
 - `folderDescriptions.ts` — 书签文件夹描述持久化

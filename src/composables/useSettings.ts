@@ -13,6 +13,7 @@ export function useSettings() {
     lastUsedAIModel: DEFAULT_SETTINGS.lastUsedAIModel
       ? { ...DEFAULT_SETTINGS.lastUsedAIModel }
       : null,
+    systemPrompts: DEFAULT_SETTINGS.systemPrompts.map(prompt => ({ ...prompt })),
     getNote: { ...DEFAULT_SETTINGS.getNote },
   })
   const isSaving = ref(false)
@@ -38,6 +39,7 @@ export function useSettings() {
       lastUsedAIModel: settings.value.lastUsedAIModel
         ? { ...settings.value.lastUsedAIModel }
         : null,
+      systemPrompts: settings.value.systemPrompts.map(prompt => ({ ...prompt })),
       getNote: { ...settings.value.getNote },
     }
   }

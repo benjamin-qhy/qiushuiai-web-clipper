@@ -28,6 +28,12 @@ export interface AIModelSelection {
   modelId: string
 }
 
+export interface SystemPrompt {
+  id: string
+  title: string
+  content: string
+}
+
 export interface GetNoteConfig {
   clientId: string
   authToken: string
@@ -43,6 +49,7 @@ export interface Settings {
   aliyunOSS: AliyunOSSConfig
   aiPlatforms: AIPlatformConfig[]
   lastUsedAIModel: AIModelSelection | null
+  systemPrompts: SystemPrompt[]
   getNote: GetNoteConfig
   bookmarkInboxFolder: string
   bookmarkSubDir: string
@@ -67,6 +74,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   aiPlatforms: [],
   lastUsedAIModel: null,
+  systemPrompts: [],
   getNote: {
     clientId: '',
     authToken: '',
@@ -111,6 +119,7 @@ export async function getSettings(): Promise<Settings> {
     aliyunOSS: { ...DEFAULT_SETTINGS.aliyunOSS, ...stored.aliyunOSS },
     aiPlatforms,
     lastUsedAIModel: validLastUsedAIModel,
+    systemPrompts: (stored.systemPrompts ?? []).map(prompt => ({ ...prompt })),
     getNote: { ...DEFAULT_SETTINGS.getNote, ...stored.getNote },
   }
 }

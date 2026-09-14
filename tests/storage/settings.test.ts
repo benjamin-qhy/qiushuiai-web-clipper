@@ -41,6 +41,7 @@ describe('getSettings', () => {
     expect(s.getNote.authToken).toBe('')
     expect(s.aiPlatforms).toEqual([])
     expect(s.lastUsedAIModel).toBeNull()
+    expect(s.systemPrompts).toEqual([])
   })
 
   it('merges stored values over defaults', async () => {
@@ -106,13 +107,32 @@ describe('getSettings', () => {
 
     expect(s.lastUsedAIModel).toBeNull()
   })
+
+  it('keeps stored system prompts', async () => {
+    mockStorage['feishu-clipper-settings'] = {
+      systemPrompts: [{ id: 'prompt-1', title: '摘要', content: '请总结内容。' }],
+    }
+
+    const s = await getSettings()
+
+    expect(s.systemPrompts).toEqual([
+      { id: 'prompt-1', title: '摘要', content: '请总结内容。' },
+    ])
+  })
 })
 
 describe('saveSettings', () => {
   it('persists settings to browser.storage.local', async () => {
-    const settings = { ...DEFAULT_SETTINGS, subDir: 'Archive' }
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      subDir: 'Archive',
+      systemPrompts: [{ id: 'prompt-1', title: '翻译', content: '翻译为中文。' }],
+    }
     await saveSettings(settings)
     const stored = mockStorage['feishu-clipper-settings'] as typeof settings
     expect(stored.subDir).toBe('Archive')
+    expect(stored.systemPrompts).toEqual([
+      { id: 'prompt-1', title: '翻译', content: '翻译为中文。' },
+    ])
   })
 })

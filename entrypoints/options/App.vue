@@ -5,6 +5,7 @@ import { useSettings } from '../../src/composables/useSettings'
 import { useVaultStore } from '../../src/composables/useVaultStore'
 import { computeSharedImagePath } from '../../src/filesystem/paths'
 import ModelConfigSection from './components/ModelConfigSection.vue'
+import SystemPromptSection from './components/SystemPromptSection.vue'
 
 const { settings, isSaving, saveStatus, load, save } = useSettings()
 const vault = useVaultStore()
@@ -398,6 +399,10 @@ async function testConnection() {
         v-model:last-used-model="settings.lastUsedAIModel"
         @save="save"
       />
+
+      <div class="section-divider"></div>
+
+      <SystemPromptSection v-model:prompts="settings.systemPrompts" />
 
       <div class="section-divider"></div>
 
