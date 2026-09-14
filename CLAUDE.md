@@ -145,7 +145,7 @@ Obsidian Vault（File System Access API）
 
 - `blocks.ts` — `Block[]` → Markdown 正文（列表项用单换行，其他块用双换行）
 - `inline.ts` — `Span[]` → Markdown 行内语法
-- `frontmatter.ts` — 生成 YAML frontmatter（title/source/author/published/created/description/tags）
+- `frontmatter.ts` — 生成 YAML frontmatter（title/source/author/published/created/description/tags；未传标签时默认使用 `clippings`）
 - `filename.ts` — 安全文件名（去除非法字符，处理重名冲突）
 
 **存储层 `src/storage/`**
@@ -210,3 +210,17 @@ Obsidian Vault（File System Access API）
 - **local / per-note 模式**（默认）：图片保存到 `{subDir}/{notename}.assets/`，Markdown 引用相对路径
 - **local / shared 模式**：图片保存到统一的共享目录，Markdown 引用相对路径
 - **oss 模式**：图片上传到阿里云 OSS，Markdown 引用完整 URL（支持自定义域名）。目前仅支持阿里云 OSS，不支持其他云服务商。
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the default five canonical triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Uses a single-context domain-document layout. See `docs/agents/domain.md`.
