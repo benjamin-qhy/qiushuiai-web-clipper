@@ -81,7 +81,7 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - **金山文档**（kdocs.cn）
 - **任意通用网页**
 
-同时内置书签管理功能，支持 AI 自动分类；当前仅隐藏其 UI 入口与配置项，保留代码和已有数据。使用 WXT + Vue 3 + TypeScript 构建。
+同时内置书签管理功能，支持 AI 自动分类；当前仅隐藏其 UI 入口与配置项，保留代码和已有数据。宿主使用 WXT + Vue 3 + TypeScript 构建，内容发布工作台通过独立 React + shadcn 工作区包接入。
 
 ## 常用命令
 
@@ -121,12 +121,13 @@ Obsidian Vault（File System Access API）
 - `entrypoints/kdocs.content.ts` — 金山文档 Content Script，注入到 `*.kdocs.cn/l/*`，处理 `EXTRACT_DOC` 和 `DOWNLOAD_IMAGE` 消息
 - `entrypoints/general.content.ts` — 通用网页 Content Script，注入到所有页面（`<all_urls>`），仅处理 `EXTRACT_DOC`（提取页面标题、正文，返回 `DocContent` 中的 `markdown` 字段，而非 `blocks`）
 - `entrypoints/popup/App.vue` — 弹窗 UI，触发提取和保存
+- `entrypoints/publisher-sidepanel/` — 内容发布工作台 React 入口；Chrome 以原生侧边栏打开，Firefox 降级为独立扩展页；从本地草稿恢复无 YAML 的完整原文 Markdown
 - `entrypoints/douyin-sidepanel/App.vue` — 抖音收藏批量导入侧边栏；当前页为抖音收藏页时点击插件图标直接打开，支持抓取、勾选、刷新和批量保存到 Get 笔记
 - `entrypoints/options/App.vue` — 设置页（subDir、imageMode、OSS 配置、Get笔记配置、模型配置、系统提示词管理；书签配置目前仅隐藏）
 - `entrypoints/options/components/ModelConfigSection.vue` — 多平台模型配置与测试指令界面；平台不设数量上限，同一平台只配置一次；测试区用按平台分组的单一模型下拉框，测试成功后记录最后使用模型
 - `entrypoints/options/components/SystemPromptSection.vue` — 系统提示词管理界面；显示本地提示词列表，编辑表单紧随对应条目，标题和内容必填，新增或编辑成功后立即持久化；不删除也不接入 AI 请求
 - `entrypoints/bookmarks/App.vue` — 书签管理页，含文件夹树、书签列表、AI 分类侧边栏；当前没有 UI 入口，但页面和数据均保留；中间书签栏支持 `原始 / 域名` 排序切换
-- `entrypoints/background.ts` — 后台 Service Worker；处理 `PROCESS_BOOKMARKS`、`GET_PROCESSING_STATUS`，并按当前 tab 动态切换 popup / 抖音收藏侧边栏入口
+- `entrypoints/background.ts` — 后台 Service Worker；处理 `PROCESS_BOOKMARKS`、`GET_PROCESSING_STATUS`，并按当前 tab 动态切换 popup、抖音收藏侧边栏和内容发布工作台入口
 
 ### 核心模块
 
@@ -180,6 +181,12 @@ Obsidian Vault（File System Access API）
 - `aliyun.ts` — `OpenAICompatibleProvider` 实现，支持自定义 OpenAI Chat API 兼容服务及可选推理程度；业务调用默认保留 JSON 模式，测试指令使用普通文本模式，并透传上游错误详情
 - `index.ts` — `createAIProvider(platform, modelId, reasoning)` 创建指定模型，`createDefaultAIProvider(settings)` 使用最后一次成功测试的模型
 
+**内容发布 `src/publisher/` 与 `packages/content-publishing-workbench/`**
+
+- `src/publisher/source.ts` — 将结构化文档块或通用网页 Markdown 转为独立原文快照，元数据不写入正文
+- `src/publisher/drafts.ts` — 按快照 ID 保存发布草稿，并维护来源 URL 与活动标签页的草稿索引
+- `packages/content-publishing-workbench/` — 可移植的 React + shadcn 工作台包；当前提供原文 Markdown 预览壳，后续创作、分页、样式与导出能力均归此包
+
 **书签模块 `src/bookmark/`**
 
 - `classify.ts` — AI 自动分类书签
@@ -199,11 +206,15 @@ Obsidian Vault（File System Access API）
 - `useBookmarkProcess.ts` — 书签 AI 处理流程
 - `useUpdateChecker.ts` — 检查扩展新版本（轮询 version.qiushui.me，3s 超时，静默失败）
 
-### 核心类型（`src/types.ts`）
+### 核心类型（`src/types.ts`、`src/publisher/types.ts`）
 
 - `Block` — 文档块：type、spans、level、language、checked、rows、src、alt
 - `DocContent extends DocMeta` — 包含 blocks 的完整文档
 - `MessageRequest / MessageResponse` — Content Script ↔ Popup 通信协议
+- `SourceSnapshot` — 内容发布工作台的只读原文 Markdown 与独立元数据快照
+- `PublisherDraft` — 发布工作台草稿，保存原文快照、创作稿和卡片展示状态
+- `PublisherLayout` — 全局三栏宽度与显隐偏好
+- `CardThemeId` — 六种小红书卡片样式标识
 
 ### 图片模式
 
@@ -224,3 +235,4 @@ Uses the default five canonical triage labels. See `docs/agents/triage-labels.md
 ### Domain docs
 
 Uses a single-context domain-document layout. See `docs/agents/domain.md`.
+Project vocabulary is maintained in `CONTEXT.md`.

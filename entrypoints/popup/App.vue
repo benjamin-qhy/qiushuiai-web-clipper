@@ -7,6 +7,8 @@ import { useFileSave } from '../../src/composables/useFileSave'
 import { getSettings, saveSettings } from '../../src/storage/settings'
 import { useUpdateChecker } from '../../src/composables/useUpdateChecker'
 import { saveLinkNote } from '../../src/getnote/api'
+import { createPublisherDraft, savePublisherDraft, setActivePublisherDraft, setOpeningPublisherDraft } from '../../src/publisher/drafts'
+import { createSourceSnapshot } from '../../src/publisher/source'
 
 const version = browser.runtime.getManifest().version
 const updateChecker = useUpdateChecker()
@@ -23,6 +25,9 @@ const getNoteIncomplete = ref(false)
 const getNoteSaving = ref(false)
 const getNoteSuccess = ref(false)
 const getNoteError = ref<string | null>(null)
+const publisherError = ref<string | null>(null)
+const publisherOpening = ref(false)
+const activeTabId = ref<number | null>(null)
 const subDir = ref('')
 const imageMode = ref<'local' | 'oss'>('local')
 
@@ -35,6 +40,8 @@ const editableDescription = ref('')
 const editableTags = ref('')
 
 onMounted(async () => {
+  const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true })
+  activeTabId.value = activeTab.id ?? null
   await vault.init()
   await docContent.fetch()
   if (docContent.doc.value) {
@@ -45,6 +52,7 @@ onMounted(async () => {
     editablePublished.value = d.published ?? ''
     editableCreated.value = d.created
     editableDescription.value = d.description ?? ''
+    editableTags.value = d.tags?.join(', ') ?? ''
   }
 
   const settings = await getSettings()
@@ -163,6 +171,42 @@ async function handleSaveToGetNote() {
   }
 }
 
+async function handleOpenPublisher() {
+  if (!doc.value || publisherOpening.value) return
+
+  publisherError.value = null
+  publisherOpening.value = true
+  const snapshot = createSourceSnapshot(mergedDoc())
+  const draft = createPublisherDraft(snapshot)
+  const tabId = activeTabId.value
+  const sidePanel = browser.sidePanel as typeof browser.sidePanel | undefined
+
+  try {
+    if (sidePanel && tabId !== null) setOpeningPublisherDraft(tabId, snapshot.id)
+    const savePromise = savePublisherDraft(draft)
+    if (sidePanel && tabId !== null) {
+      const mappingPromise = setActivePublisherDraft(tabId, snapshot.id)
+      const configurePromise = sidePanel.setOptions({
+        tabId,
+        enabled: true,
+        path: `publisher-sidepanel.html?tabId=${tabId}&draftId=${snapshot.id}`,
+      })
+      const openPromise = sidePanel.open({ tabId })
+      await Promise.all([savePromise, mappingPromise, configurePromise, openPromise])
+      return
+    }
+
+    await savePromise
+    await browser.tabs.create({
+      url: `${browser.runtime.getURL('/publisher-sidepanel.html')}?draftId=${snapshot.id}`,
+    })
+  } catch (error) {
+    publisherError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    publisherOpening.value = false
+  }
+}
+
 function openSettings() {
   browser.tabs.create({ url: '/options.html' })
 }
@@ -253,6 +297,15 @@ async function handleSubDirBlur() {
 
       <!-- 底部操作区 -->
       <div class="footer">
+        <button
+          class="btn-publisher"
+          :disabled="publisherOpening"
+          @click="handleOpenPublisher"
+        >
+          {{ publisherOpening ? '正在打开…' : '发布到社交媒体' }}
+        </button>
+        <p v-if="publisherError" class="error-msg">{{ publisherError }}</p>
+
         <template v-if="!vault.isAuthorized.value && !vault.needsReauth.value && !vault.isLoading.value">
           <p class="warn-msg">请先在设置中配置 Vault 目录</p>
           <button class="btn-authorize" @click="openSettings">去设置</button>
@@ -528,6 +581,20 @@ async function handleSubDirBlur() {
   font-family: var(--font-ui);
   transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, opacity 0.18s ease;
 }
+.btn-publisher {
+  width: 100%;
+  border: 1px solid var(--color-accent);
+  border-radius: 2px;
+  background: var(--color-accent);
+  color: #fff;
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-publisher:hover { background: #b86425; }
+.btn-publisher:disabled { cursor: not-allowed; opacity: 0.5; }
 .btn-get-note:hover {
   background: rgba(196, 116, 47, 0.08);
   border-color: rgba(196, 116, 47, 0.4);
