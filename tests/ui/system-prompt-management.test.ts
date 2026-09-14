@@ -31,4 +31,12 @@ describe('system prompt management UI', () => {
       optionsSource.indexOf('<ModelConfigSection'),
     )
   })
+
+  it('provides a prompt-management menu below model configuration', () => {
+    expect(optionsSource).toContain("'models', 'prompts'")
+    expect(optionsSource).toContain("scrollTo('prompts')\">提示词管理")
+
+    const source = readFileSync(componentPath, 'utf8')
+    expect(source).toContain('id="section-prompts"')
+  })
 })

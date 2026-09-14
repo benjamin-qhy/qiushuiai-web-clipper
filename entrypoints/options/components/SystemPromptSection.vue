@@ -65,7 +65,7 @@ function savePrompt() {
 </script>
 
 <template>
-  <section class="system-prompt-section">
+  <section id="section-prompts" class="system-prompt-section">
     <div class="section-header">
       <h2>系统提示词管理</h2>
       <p>维护可复用的本地提示词，不会自动应用到模型请求。</p>
