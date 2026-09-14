@@ -24,6 +24,7 @@ import {
 } from './components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Textarea } from './components/ui/textarea'
+import { MarkdownEditor } from './components/MarkdownEditor'
 
 export interface ContentPublishingWorkbenchProps {
   initialDraft: PublisherDraft
@@ -269,24 +270,10 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
             </Button>
             {error && <p role="alert" className="publishing-workbench__error">{error}</p>}
 
-            <Tabs defaultValue="edit">
-              <TabsList variant="line">
-                <TabsTrigger value="edit">编辑</TabsTrigger>
-                <TabsTrigger value="preview">预览</TabsTrigger>
-              </TabsList>
-              <TabsContent value="edit">
-                <Textarea
-                  aria-label="创作稿 Markdown"
-                  className="publishing-workbench__editor"
-                  value={draft.draftMarkdown}
-                  placeholder="选择创作指令后由 AI 生成，或直接开始编辑…"
-                  onChange={event => setDraft(current => ({ ...current, draftMarkdown: event.target.value }))}
-                />
-              </TabsContent>
-              <TabsContent value="preview">
-                <article className="publishing-workbench__draft-preview"><Markdown>{draft.draftMarkdown}</Markdown></article>
-              </TabsContent>
-            </Tabs>
+            <MarkdownEditor
+              value={draft.draftMarkdown}
+              onChange={draftMarkdown => setDraft(current => ({ ...current, draftMarkdown }))}
+            />
           </div>
         </section>
       </div>
