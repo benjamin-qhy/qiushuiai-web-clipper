@@ -6,6 +6,16 @@ export { CardCanvas, buildDisplayPages } from './card/CardCanvas'
 export { CARD_THEMES, getCardTheme } from './card/themes'
 export type { CardTheme } from './card/themes'
 export type { DisplayPage } from './card/CardCanvas'
+export {
+  assertCardNode,
+  assertPngBlob,
+  buildPageFileName,
+  createStreamingZipSink,
+  exportCardsToZip,
+  renderCardToPng,
+  safeExportTitle,
+  waitForExportAssets,
+} from './export/exportCards'
 export { parseCardMarkdown } from './markdown/parse'
 export type { SemanticBlock } from './markdown/parse'
 export type { InlineNode } from './markdown/inlineMarks'
@@ -17,6 +27,7 @@ export type { ContentPublishingWorkbenchProps } from './ContentPublishingWorkben
 export { createDraft, DEFAULT_PUBLISHER_LAYOUT, resolveReasoningLevel } from './types'
 export type {
   CardThemeId,
+  DownloadArtifact,
   DraftInstruction,
   GenerateInput,
   ModelChoice,

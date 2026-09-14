@@ -316,6 +316,7 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
             themeId={draft.themeId}
             coverEnabled={draft.coverEnabled}
             currentPage={draft.currentPage}
+            onDownload={adapters.download}
             onThemeChange={themeId => setDraft(current => ({ ...current, themeId }))}
             onCoverChange={coverEnabled => setDraft(current => ({ ...current, coverEnabled, currentPage: 0 }))}
             onPageChange={currentPage => setDraft(current => ({ ...current, currentPage }))}

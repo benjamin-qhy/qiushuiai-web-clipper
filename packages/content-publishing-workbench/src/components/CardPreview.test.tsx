@@ -7,6 +7,18 @@ import { CardPreview } from './CardPreview'
 const { planPagesMock } = vi.hoisted(() => ({
   planPagesMock: vi.fn(async () => Array.from({ length: 4 }, (_, index) => ({ index, blocks: [] }))),
 }))
+const { renderCardToPngMock, exportCardsToZipMock, downloadArtifactMock } = vi.hoisted(() => ({
+  renderCardToPngMock: vi.fn(async (_node?: HTMLElement, _renderer?: unknown, _signal?: AbortSignal) =>
+    new Blob(['png'], { type: 'image/png' })),
+  exportCardsToZipMock: vi.fn(async ({ pages, renderPage }: {
+    pages: Array<{ index: number }>
+    renderPage(page: { index: number }): Promise<HTMLElement>
+  }) => {
+    for (const page of pages) await renderPage(page)
+    return { blob: new Blob(['zip'], { type: 'application/zip' }), fileName: '文章标题.zip' }
+  }),
+  downloadArtifactMock: vi.fn().mockResolvedValue(undefined),
+}))
 
 vi.mock('../layout/planPages', () => ({ planPages: planPagesMock }))
 vi.mock('../layout/MeasureStage', async () => {
@@ -19,6 +31,11 @@ vi.mock('../layout/MeasureStage', async () => {
     }),
   }
 })
+vi.mock('../export/exportCards', () => ({
+  buildPageFileName: (title: string, index: number) => `${title}-${String(index + 1).padStart(2, '0')}.png`,
+  renderCardToPng: renderCardToPngMock,
+  exportCardsToZip: exportCardsToZipMock,
+}))
 
 class ResizeObserverMock {
   constructor(private callback: ResizeObserverCallback) {}
@@ -34,6 +51,10 @@ afterAll(() => vi.unstubAllGlobals())
 afterEach(() => {
   cleanup()
   planPagesMock.mockClear()
+  renderCardToPngMock.mockClear()
+  exportCardsToZipMock.mockClear()
+  downloadArtifactMock.mockClear()
+  downloadArtifactMock.mockResolvedValue(undefined)
 })
 
 function Harness({ initialPage = 0 }: { initialPage?: number }) {
@@ -47,6 +68,7 @@ function Harness({ initialPage = 0 }: { initialPage?: number }) {
     themeId={themeId}
     coverEnabled={coverEnabled}
     currentPage={currentPage}
+    onDownload={downloadArtifactMock}
     onThemeChange={setThemeId}
     onCoverChange={enabled => { setCoverEnabled(enabled); setCurrentPage(0) }}
     onPageChange={setCurrentPage}
@@ -112,5 +134,55 @@ describe('CardPreview', () => {
     expect(await screen.findByText('共 4 张')).not.toBeNull()
     expect(document.querySelector('.publishing-workbench__page-controls span')?.textContent).toBe('4 / 4')
     expect(planPagesMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('downloads the current PNG and renders all ZIP pages in order', async () => {
+    render(<Harness />)
+    await screen.findByText('共 4 张')
+
+    fireEvent.click(screen.getByRole('button', { name: '保存当前页' }))
+    await waitFor(() => expect(downloadArtifactMock).toHaveBeenCalledWith(expect.objectContaining({
+      blob: expect.any(Blob), fileName: '文章标题-01.png',
+      signal: expect.any(AbortSignal),
+    })))
+
+    fireEvent.click(screen.getByRole('button', { name: '保存全部' }))
+    await waitFor(() => expect(downloadArtifactMock).toHaveBeenCalledWith(expect.objectContaining({
+      blob: expect.any(Blob), fileName: '文章标题.zip',
+      signal: expect.any(AbortSignal),
+    })))
+    expect(exportCardsToZipMock).toHaveBeenCalledWith(expect.objectContaining({
+      pages: expect.arrayContaining([expect.objectContaining({ index: 0 }), expect.objectContaining({ index: 3 })]),
+      title: '文章标题',
+    }))
+  })
+
+  it('warns above twenty pages without truncating export input', async () => {
+    planPagesMock.mockResolvedValueOnce(Array.from({ length: 21 }, (_, index) => ({ index, blocks: [] })))
+    render(<Harness />)
+
+    expect(await screen.findByRole('status')).toHaveProperty('textContent', '共 21 页，全部导出会逐页处理，可能需要较长时间。')
+    fireEvent.click(screen.getByRole('button', { name: '保存全部' }))
+    await waitFor(() => expect(exportCardsToZipMock.mock.calls[0]?.[0].pages).toHaveLength(21))
+  })
+
+  it('cancels an in-flight export on unmount without downloading', async () => {
+    let abortObserved = false
+    renderCardToPngMock.mockImplementationOnce((_node, _renderer, signal) => new Promise((_, reject) => {
+      if (!signal) throw new Error('missing abort signal')
+      signal.addEventListener('abort', () => {
+        abortObserved = true
+        reject(signal.reason)
+      }, { once: true })
+    }))
+    const view = render(<Harness />)
+    await screen.findByText('共 4 张')
+
+    fireEvent.click(screen.getByRole('button', { name: '保存当前页' }))
+    await waitFor(() => expect(renderCardToPngMock).toHaveBeenCalledOnce())
+    view.unmount()
+
+    await waitFor(() => expect(abortObserved).toBe(true))
+    expect(downloadArtifactMock).not.toHaveBeenCalled()
   })
 })

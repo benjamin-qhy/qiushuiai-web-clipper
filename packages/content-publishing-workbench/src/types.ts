@@ -69,6 +69,12 @@ export interface GenerateInput {
   model: ModelSelection
 }
 
+export interface DownloadArtifact {
+  blob: Blob
+  fileName: string
+  signal?: AbortSignal
+}
+
 export interface WorkbenchAdapters {
   listModels(): Promise<ModelChoice[]>
   listTemplates(): Promise<PromptTemplate[]>
@@ -78,6 +84,7 @@ export interface WorkbenchAdapters {
   loadLayout(): Promise<PublisherLayout>
   saveLayout(layout: PublisherLayout): Promise<void>
   openSettings(): Promise<void>
+  download(artifact: DownloadArtifact): Promise<void>
 }
 
 export function resolveReasoningLevel(
