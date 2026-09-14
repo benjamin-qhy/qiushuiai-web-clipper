@@ -12,6 +12,7 @@ node_modules
 stats.html
 stats-*.json
 .wxt
+.worktrees/
 web-ext.config.ts
 
 .env.local
