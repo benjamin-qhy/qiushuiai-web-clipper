@@ -124,7 +124,7 @@ Obsidian Vault（File System Access API）
 - `entrypoints/douyin-sidepanel/App.vue` — 抖音收藏批量导入侧边栏；当前页为抖音收藏页时点击插件图标直接打开，支持抓取、勾选、刷新和批量保存到 Get 笔记
 - `entrypoints/options/App.vue` — 设置页（subDir、imageMode、OSS 配置、Get笔记配置、模型配置、系统提示词管理；书签配置目前仅隐藏）
 - `entrypoints/options/components/ModelConfigSection.vue` — 多平台模型配置与测试指令界面；平台不设数量上限，同一平台只配置一次；测试区用按平台分组的单一模型下拉框，测试成功后记录最后使用模型
-- `entrypoints/options/components/SystemPromptSection.vue` — 系统提示词管理界面；显示本地提示词列表，支持标题和内容必填的新建与编辑，不删除也不接入 AI 请求
+- `entrypoints/options/components/SystemPromptSection.vue` — 系统提示词管理界面；显示本地提示词列表，编辑表单紧随对应条目，标题和内容必填，新增或编辑成功后立即持久化；不删除也不接入 AI 请求
 - `entrypoints/bookmarks/App.vue` — 书签管理页，含文件夹树、书签列表、AI 分类侧边栏；当前没有 UI 入口，但页面和数据均保留；中间书签栏支持 `原始 / 域名` 排序切换
 - `entrypoints/background.ts` — 后台 Service Worker；处理 `PROCESS_BOOKMARKS`、`GET_PROCESSING_STATUS`，并按当前 tab 动态切换 popup / 抖音收藏侧边栏入口
 
@@ -145,7 +145,7 @@ Obsidian Vault（File System Access API）
 
 - `blocks.ts` — `Block[]` → Markdown 正文（列表项用单换行，其他块用双换行）
 - `inline.ts` — `Span[]` → Markdown 行内语法
-- `frontmatter.ts` — 生成 YAML frontmatter（title/source/author/published/created/description/tags）
+- `frontmatter.ts` — 生成 YAML frontmatter（title/source/author/published/created/description/tags；未传标签时默认使用 `clippings`）
 - `filename.ts` — 安全文件名（去除非法字符，处理重名冲突）
 
 **存储层 `src/storage/`**
@@ -210,3 +210,17 @@ Obsidian Vault（File System Access API）
 - **local / per-note 模式**（默认）：图片保存到 `{subDir}/{notename}.assets/`，Markdown 引用相对路径
 - **local / shared 模式**：图片保存到统一的共享目录，Markdown 引用相对路径
 - **oss 模式**：图片上传到阿里云 OSS，Markdown 引用完整 URL（支持自定义域名）。目前仅支持阿里云 OSS，不支持其他云服务商。
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the default five canonical triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Uses a single-context domain-document layout. See `docs/agents/domain.md`.

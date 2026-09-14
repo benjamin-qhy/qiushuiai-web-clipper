@@ -28,7 +28,7 @@ const ossRegions = [
 const version = browser.runtime.getManifest().version
 const mainEl = ref<HTMLElement | null>(null)
 const activeSection = ref('vault')
-const sectionIds = ['vault', 'images', 'get-note', 'models']
+const sectionIds = ['vault', 'images', 'get-note', 'models', 'prompts']
 
 let observer: IntersectionObserver | null = null
 
@@ -216,6 +216,7 @@ async function testConnection() {
         <a class="nav-item" :class="{ active: activeSection === 'get-note' }" href="#section-get-note" @click.prevent="scrollTo('get-note')">Get 笔记</a>
         <div class="nav-group-label">AI</div>
         <a class="nav-item" :class="{ active: activeSection === 'models' }" href="#section-models" @click.prevent="scrollTo('models')">模型配置</a>
+        <a class="nav-item" :class="{ active: activeSection === 'prompts' }" href="#section-prompts" @click.prevent="scrollTo('prompts')">提示词管理</a>
         <div class="bookmark-settings-nav feature-hidden">
           <div class="nav-group-label">书签</div>
           <a class="nav-item" :class="{ active: activeSection === 'org' }" href="#section-org" @click.prevent="scrollTo('org')">整理</a>
@@ -402,7 +403,7 @@ async function testConnection() {
 
       <div class="section-divider"></div>
 
-      <SystemPromptSection v-model:prompts="settings.systemPrompts" />
+      <SystemPromptSection v-model:prompts="settings.systemPrompts" @save="save" />
 
       <div class="section-divider"></div>
 

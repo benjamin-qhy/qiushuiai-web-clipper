@@ -31,4 +31,28 @@ describe('system prompt management UI', () => {
       optionsSource.indexOf('<ModelConfigSection'),
     )
   })
+
+  it('provides a prompt-management menu below model configuration', () => {
+    expect(optionsSource).toContain("'models', 'prompts'")
+    expect(optionsSource).toContain("scrollTo('prompts')\">提示词管理")
+
+    const source = readFileSync(componentPath, 'utf8')
+    expect(source).toContain('id="section-prompts"')
+  })
+
+  it('renders the edit form immediately after the selected prompt', () => {
+    const source = readFileSync(componentPath, 'utf8')
+
+    expect(source).toContain('promptRows')
+    expect(source).toContain("editingId.value === prompt.id")
+    expect(source).toContain("row.type === 'form'")
+  })
+
+  it('persists prompts immediately after a successful form save', () => {
+    const source = readFileSync(componentPath, 'utf8')
+
+    expect(source).toContain('defineEmits')
+    expect(source).toContain("emit('save')")
+    expect(optionsSource).toContain('@save="save"')
+  })
 })
