@@ -87,8 +87,10 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 
 ```bash
 pnpm dev                  # 开发模式（Chrome，热重载）
+pnpm dev:publisher        # 独立 Web 预览（普通浏览器，默认 http://localhost:5173）
 pnpm dev:firefox          # 开发模式（Firefox）
 pnpm build                # 构建 Chrome 扩展
+pnpm build:publisher      # 构建独立 Web 预览
 pnpm build:firefox        # 构建 Firefox 扩展
 pnpm zip                  # 打包 Chrome 扩展（zip）
 pnpm zip:firefox          # 打包 Firefox 扩展（zip）
@@ -122,6 +124,7 @@ Obsidian Vault（File System Access API）
 - `entrypoints/general.content.ts` — 通用网页 Content Script，注入到所有页面（`<all_urls>`），仅处理 `EXTRACT_DOC`（提取页面标题、正文，返回 `DocContent` 中的 `markdown` 字段，而非 `blocks`）
 - `entrypoints/popup/App.vue` — 弹窗 UI，触发提取和保存
 - `entrypoints/publisher-sidepanel/` — 内容发布工作台 React 入口；Chrome 以原生侧边栏打开，Firefox 降级为独立扩展页；从本地草稿恢复无 YAML 的完整原文 Markdown，并通过宿主适配器提供模型、提示词、生成和设置入口
+- `packages/publisher-playground/` — 内容发布工作台的独立 Vite Web 预览；使用示例稿件、本地存储和模拟 AI 适配器，可在普通浏览器中调试布局、编辑、分页、主题与导出，不读取插件设置或模型凭据
 - `entrypoints/douyin-sidepanel/App.vue` — 抖音收藏批量导入侧边栏；当前页为抖音收藏页时点击插件图标直接打开，支持抓取、勾选、刷新和批量保存到 Get 笔记
 - `entrypoints/options/App.vue` — 设置页（subDir、imageMode、OSS 配置、Get笔记配置、模型配置、系统提示词管理；书签配置目前仅隐藏）
 - `entrypoints/options/components/ModelConfigSection.vue` — 多平台模型配置与测试指令界面；平台不设数量上限，同一平台只配置一次；测试区用按平台分组的单一模型下拉框，测试成功后记录最后使用模型
@@ -188,7 +191,7 @@ Obsidian Vault（File System Access API）
 
 - `src/publisher/source.ts` — 将结构化文档块或通用网页 Markdown 转为独立原文快照，元数据不写入正文
 - `src/publisher/drafts.ts` — 按快照 ID 保存发布草稿，并维护来源 URL 与活动标签页的草稿索引；读取时迁移旧草稿；全局保存三栏的宽度、显隐和活动区域，并修复无效的旧布局
-- `packages/content-publishing-workbench/` — 可移植的 React + shadcn 工作台包；提供原文预览、模型/推理与模板/手工创作指令、AI 生成、覆盖确认、草稿保存状态及语义化 Markdown 编辑/预览，关闭时会立即补存最后一次编辑；三栏按容器宽度切换为宽屏三栏、中屏活动栏加相邻栏、窄屏单栏标签页，支持拖动、隐藏、恢复和重置；成品区提供基础、科技、简约、边框、手帐、柔和六种 1242×1656 小红书卡片样式、可选封面、重点标注、分页导航和虚拟化预览，主题切换不会改变分页计划；支持保存当前页 PNG 或将全部页面顺序打包为 ZIP，超过 20 页只提示性能风险而不截断
+- `packages/content-publishing-workbench/` — 可移植的 React + shadcn 工作台包；界面复用设置页的系统字体、14px 控件字号、黑灰橙色令牌、2px 控件圆角和紧凑输入样式；顶部用单行中文标题与图标按钮组控制三栏，三栏标题不显示英文；模型、推理程度和提示词模板使用创作稿标题栏右侧的 Base UI 纯图标下拉菜单，选择模板会把内容写入同一个可编辑创作指令输入框，图标按钮触发 AI 生成；提供原文预览、覆盖确认、草稿保存状态及语义化 Markdown 编辑/预览，关闭时会立即补存最后一次编辑；三栏按容器宽度切换为宽屏三栏、中屏活动栏加相邻栏、窄屏单栏标签页，支持拖动、隐藏、恢复和重置；成品区提供基础、科技、简约、边框、手帐、柔和六种 1242×1656 小红书卡片样式、可选封面、重点标注、单一分页导航和虚拟化预览，封面与 PNG/ZIP 保存使用标题栏图标按钮，主题切换不会改变分页计划；超过 20 页只提示性能风险而不截断
 - `packages/content-publishing-workbench/src/markdown/` — 将卡片 Markdown 解析为与视觉样式无关的语义块；支持 GFM 表格、标题、段落、列表、引用、链接、代码、粗体、斜体、`==重点==`、分隔线和 `<!-- pagebreak -->`
 - `packages/content-publishing-workbench/src/layout/` — 纯异步分页计划与隐藏 DOM 测量台；按 1242×1656 卡片几何和与主题无关的排版 CSS 测量整张候选页块栈，优先块边界和标题保护，对超高文本及列表、引用、代码、表格做语义安全拆分，不限制总页数；编辑触发重排时会取消尚未完成的旧测量，排版失败会显示错误并允许重试
 - `packages/content-publishing-workbench/src/card/` — 六种卡片主题目录与最终卡片画布；内容页共用同一分页计划，可在其前附加默认关闭的封面而不修改内容页，页脚显示当前页码

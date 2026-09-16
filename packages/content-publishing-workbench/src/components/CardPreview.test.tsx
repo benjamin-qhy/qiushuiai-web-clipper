@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { CardThemeId } from '../types'
@@ -96,19 +96,30 @@ describe('CardPreview', () => {
     fireEvent.click(screen.getByRole('button', { name: '添加封面' }))
 
     expect(await screen.findByText('共 5 张')).not.toBeNull()
-    expect(screen.getByRole('button', { name: '第 1 页，封面' })).not.toBeNull()
-    expect(screen.getByRole('button', { name: '第 5 页' })).not.toBeNull()
+    expect(screen.queryByLabelText('页面缩略图')).toBeNull()
+    expect(document.querySelector('.publishing-workbench__page-controls span')?.textContent).toBe('1 / 5')
     expect(planPagesMock).toHaveBeenCalledOnce()
   })
 
-  it('mounts only the current page and its neighbors while all thumbnails remain available', async () => {
+  it('mounts only the current page and its neighbors with a single page navigator', async () => {
     render(<Harness />)
     await screen.findByText('共 4 张')
     fireEvent.click(screen.getByRole('button', { name: '下一页' }))
 
     await waitFor(() => expect(document.querySelectorAll('[data-card-page]')).toHaveLength(3))
-    expect(screen.getByLabelText('页面缩略图').querySelectorAll('button')).toHaveLength(4)
+    expect(screen.queryByLabelText('页面缩略图')).toBeNull()
     expect(document.querySelector('.publishing-workbench__page-controls span')?.textContent).toBe('2 / 4')
+  })
+
+  it('puts cover and save icon actions beside the output title', async () => {
+    render(<Harness />)
+    await screen.findByText('共 4 张')
+
+    const heading = screen.getByRole('heading', { name: '发布成品' })
+    const header = heading.closest('.publishing-workbench__pane-header')!
+    expect(within(header as HTMLElement).getByRole('button', { name: '添加封面' }).textContent).toBe('')
+    expect(within(header as HTMLElement).getByRole('button', { name: '保存当前页' }).textContent).toBe('')
+    expect(within(header as HTMLElement).getByRole('button', { name: '保存全部' }).textContent).toBe('')
   })
 
   it('preserves a restored page until asynchronous pagination completes', async () => {

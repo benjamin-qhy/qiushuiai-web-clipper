@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
+import { Bot, Brain, Settings, Sparkles, WandSparkles } from 'lucide-react'
 import {
   DEFAULT_PUBLISHER_LAYOUT,
   type ModelChoice,
@@ -20,17 +21,15 @@ import {
   AlertDialogTitle,
 } from './components/ui/alert-dialog'
 import { Button } from './components/ui/button'
-import { Field, FieldGroup, FieldLabel } from './components/ui/field'
+import { ButtonGroup } from './components/ui/button-group'
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from './components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from './components/ui/dropdown-menu'
 import { Textarea } from './components/ui/textarea'
 import { MarkdownEditor } from './components/MarkdownEditor'
 import { ResponsiveWorkspace } from './components/ResponsiveWorkspace'
@@ -71,13 +70,19 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
           const availableModel = current.model
             ? nextModels.find(model => modelKey(model) === modelKey(current.model!))
             : undefined
+          const selectedTemplate = current.instruction.templateId
+            ? nextTemplates.find(template => template.id === current.instruction.templateId)
+            : undefined
+          const instruction = selectedTemplate && !current.instruction.manualContent.trim()
+            ? { mode: 'manual' as const, templateId: selectedTemplate.id, manualContent: selectedTemplate.content }
+            : current.instruction
           if (availableModel && current.model) {
             const reasoning = availableModel.reasoningLevels.includes(current.model.reasoning)
               ? current.model.reasoning
               : 'off'
-            return { ...current, model: { ...current.model, reasoning } }
+            return { ...current, instruction, model: { ...current.model, reasoning } }
           }
-          return { ...current, model: defaultModel }
+          return { ...current, instruction, model: defaultModel }
         })
       })
       .catch(loadError => setError(loadError instanceof Error ? loadError.message : String(loadError)))
@@ -117,14 +122,7 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
   const selectedModel = useMemo(() => models.find(model =>
     model.platformId === draft.model?.platformId && model.modelId === draft.model?.modelId,
   ), [draft.model, models])
-  const selectedTemplate = useMemo(() => {
-    if (draft.instruction.mode !== 'template') return undefined
-    const templateId = draft.instruction.templateId
-    return templates.find(template => template.id === templateId)
-  }, [draft.instruction, templates])
-  const instruction = draft.instruction.mode === 'manual'
-    ? draft.instruction.manualContent.trim()
-    : selectedTemplate?.content.trim() ?? ''
+  const instruction = draft.instruction.manualContent.trim()
   const reasoningIsValid = Boolean(draft.model && selectedModel?.reasoningLevels.includes(draft.model.reasoning))
   const canGenerate = Boolean(draft.model && selectedModel && reasoningIsValid && instruction && !generating && !loadingOptions)
 
@@ -139,6 +137,15 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
         modelId: model.modelId,
         reasoning: model.reasoningLevels.includes(currentReasoning) ? currentReasoning : 'off',
       },
+    }))
+  }
+
+  function selectTemplate(templateId: string) {
+    const template = templates.find(option => option.id === templateId)
+    if (!template) return
+    setDraft(current => ({
+      ...current,
+      instruction: { mode: 'manual', templateId: template.id, manualContent: template.content },
     }))
   }
 
@@ -178,14 +185,12 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
 
   return (
     <main className="publishing-workbench">
-      <header className="publishing-workbench__header">
-        <div><p className="publishing-workbench__eyebrow">CONTENT STUDIO</p><h1>内容发布工作台</h1></div>
+      {layout ? <ResponsiveWorkspace header={<header className="publishing-workbench__header">
+        <h1>内容发布工作台</h1>
         <span role="status">{saveStatus === 'saving' ? '正在保存…' : saveStatus === 'error' ? '草稿保存失败' : '草稿已自动保存'}</span>
-      </header>
-
-      {layout ? <ResponsiveWorkspace layout={layout} onLayoutChange={updateLayout} panes={{
+      </header>} layout={layout} onLayoutChange={updateLayout} panes={{
         source: <section className="publishing-workbench__pane" aria-labelledby="source-pane-title">
-          <PaneHeader index="01" label="SOURCE" title="内容原文" titleId="source-pane-title">
+          <PaneHeader title="内容原文" titleId="source-pane-title">
             <Button asChild variant="link" size="sm">
               <a href={draft.snapshot.meta.source} target="_blank" rel="noreferrer">查看来源</a>
             </Button>
@@ -205,99 +210,78 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
         </section>,
 
         composer: <section className="publishing-workbench__pane" aria-labelledby="composer-pane-title">
-          <PaneHeader index="02" label="COMPOSE" title="创作稿" titleId="composer-pane-title" />
+          <PaneHeader title="创作稿" titleId="composer-pane-title">
+            <ButtonGroup className="publishing-workbench__compose-menus" aria-label="创作设置">
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label="选择模型"
+                  title={`模型：${selectedModel?.label ?? '未选择'}`} />}>
+                  <Bot aria-hidden="true" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {[...new Set(models.map(model => model.groupLabel))].map(group => <DropdownMenuGroup key={group}>
+                    <DropdownMenuLabel>{group}</DropdownMenuLabel>
+                    {models.filter(model => model.groupLabel === group).map(model => <DropdownMenuItem
+                      key={modelKey(model)} onClick={() => selectModel(modelKey(model))}
+                    >{model.label}</DropdownMenuItem>)}
+                  </DropdownMenuGroup>)}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label="选择推理程度"
+                  title={`推理程度：${reasoningLabels[draft.model?.reasoning ?? 'off']}`} disabled={!selectedModel} />}>
+                  <Brain aria-hidden="true" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>推理程度</DropdownMenuLabel>
+                    {selectedModel?.reasoningLevels.map(level => <DropdownMenuItem key={level}
+                      onClick={() => setDraft(current => current.model
+                        ? { ...current, model: { ...current.model, reasoning: level } }
+                        : current)}
+                    >{reasoningLabels[level]}</DropdownMenuItem>)}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label="选择提示词模板"
+                  title="选择提示词模板" />}>
+                  <WandSparkles aria-hidden="true" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>提示词模板</DropdownMenuLabel>
+                    {templates.map(template => <DropdownMenuItem key={template.id}
+                      onClick={() => selectTemplate(template.id)}
+                    >{template.title}</DropdownMenuItem>)}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ButtonGroup>
+          </PaneHeader>
+
           <div className="publishing-workbench__composer">
-            <FieldGroup>
-              <Field>
-                <FieldLabel>模型</FieldLabel>
-                <Select value={draft.model ? modelKey(draft.model) : ''} onValueChange={selectModel}>
-                  <SelectTrigger aria-label="模型"><SelectValue placeholder="请选择模型" /></SelectTrigger>
-                  <SelectContent>
-                    {[...new Set(models.map(model => model.groupLabel))].map(group => (
-                      <SelectGroup key={group}>
-                        <SelectLabel>{group}</SelectLabel>
-                        {models.filter(model => model.groupLabel === group).map(model => (
-                          <SelectItem key={modelKey(model)} value={modelKey(model)}>{model.label}</SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel>推理程度</FieldLabel>
-                <Select
-                  value={draft.model?.reasoning ?? 'off'}
-                  disabled={!selectedModel}
-                  onValueChange={reasoning => setDraft(current => current.model
-                    ? { ...current, model: { ...current.model, reasoning: reasoning as ModelSelection['reasoning'] } }
-                    : current)}
-                >
-                  <SelectTrigger aria-label="推理程度"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectGroup>
-                    {selectedModel?.reasoningLevels.map(level => (
-                      <SelectItem key={level} value={level}>{reasoningLabels[level]}</SelectItem>
-                    ))}
-                  </SelectGroup></SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel>创作指令</FieldLabel>
-                <Tabs
-                  value={draft.instruction.mode}
-                  onValueChange={mode => setDraft(current => ({ ...current,
-                    instruction: { ...current.instruction, mode: mode as 'template' | 'manual' },
-                  }))}
-                >
-                  <TabsList variant="line">
-                    <TabsTrigger value="template">提示词模板</TabsTrigger>
-                    <TabsTrigger value="manual">手工输入</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="template">
-                    <Select
-                      value={draft.instruction.mode === 'template' ? draft.instruction.templateId : ''}
-                      onValueChange={nextTemplateId => {
-                        setDraft(current => ({ ...current,
-                          instruction: { ...current.instruction, templateId: nextTemplateId },
-                        }))
-                      }}
-                    >
-                      <SelectTrigger aria-label="系统提示词"><SelectValue placeholder="请选择系统提示词" /></SelectTrigger>
-                      <SelectContent><SelectGroup>
-                        {templates.map(template => (
-                          <SelectItem key={template.id} value={template.id}>{template.title}</SelectItem>
-                        ))}
-                      </SelectGroup></SelectContent>
-                    </Select>
-                  </TabsContent>
-                  <TabsContent value="manual">
-                    <Textarea
-                      aria-label="手工系统提示词"
-                      value={draft.instruction.manualContent}
-                      placeholder="输入仅用于当前草稿的系统提示词"
-                      onChange={event => {
-                        setDraft(current => ({ ...current,
-                          instruction: { ...current.instruction, manualContent: event.target.value },
-                        }))
-                      }}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </Field>
-            </FieldGroup>
+            <div className="publishing-workbench__instruction-row">
+              <Textarea
+                aria-label="创作指令"
+                value={draft.instruction.manualContent}
+                placeholder="输入创作指令，或从上方选择提示词模板"
+                onChange={event => setDraft(current => ({ ...current,
+                  instruction: { mode: 'manual', templateId: '', manualContent: event.target.value },
+                }))}
+              />
+              <Button size="icon" aria-label="生成创作稿" title="生成创作稿" disabled={!canGenerate}
+                onClick={requestGeneration}>
+                <Sparkles aria-hidden="true" />
+              </Button>
+            </div>
 
             {!models.length && !loadingOptions
               ? <div className="publishing-workbench__empty"><p>尚未配置可用模型。</p>
-                  <Button variant="outline" onClick={() => void adapters.openSettings()}>打开设置</Button></div>
-              : null}
-            {models.length > 0 && draft.instruction.mode === 'template' && !selectedTemplate && !loadingOptions
-              ? <div className="publishing-workbench__empty"><p>请选择系统提示词；如无可用模板，请前往设置添加。</p>
-                  <Button variant="outline" onClick={() => void adapters.openSettings()}>打开设置</Button></div>
+                  <Button size="icon-sm" variant="outline" aria-label="打开设置" title="打开设置"
+                    onClick={() => void adapters.openSettings()}><Settings aria-hidden="true" /></Button></div>
               : null}
             {loadingOptions && <p className="publishing-workbench__loading">正在加载模型与提示词…</p>}
-            <Button disabled={!canGenerate} onClick={requestGeneration}>
-              {generating ? '生成中…' : '生成创作稿'}
-            </Button>
+            {generating && <p className="publishing-workbench__loading">正在生成创作稿…</p>}
             {error && <p role="alert" className="publishing-workbench__error">{error}</p>}
 
             <MarkdownEditor
@@ -308,7 +292,6 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
         </section>,
 
         output: <section className="publishing-workbench__pane" aria-labelledby="output-pane-title">
-          <PaneHeader index="03" label="OUTPUT" title="发布成品" titleId="output-pane-title" />
           <CardPreview
             markdown={draft.draftMarkdown}
             title={draft.snapshot.meta.title}
@@ -341,20 +324,16 @@ export function ContentPublishingWorkbench({ initialDraft, adapters }: ContentPu
 }
 
 function PaneHeader({
-  index,
-  label,
   title,
   titleId,
   children,
 }: {
-  index: string
-  label: string
   title: string
   titleId: string
   children?: React.ReactNode
 }) {
   return <div className="publishing-workbench__pane-header">
-    <div><p>{index} / {label}</p><h2 id={titleId}>{title}</h2></div>
+    <h2 id={titleId}>{title}</h2>
     {children}
   </div>
 }

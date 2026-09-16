@@ -108,7 +108,10 @@ describe('ResponsiveWorkspace', () => {
   it('can hide, restore, and reset panes while keeping at least one visible', () => {
     render(<Harness />)
 
-    fireEvent.click(screen.getByRole('button', { name: '隐藏原文' }))
+    const sourceToggle = screen.getByRole('button', { name: '隐藏原文' })
+    expect(sourceToggle.textContent).toBe('')
+    expect(sourceToggle.closest('[data-slot="button-group"]')).not.toBeNull()
+    fireEvent.click(sourceToggle)
     expect(screen.queryByText('原文内容')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '显示原文' }))
     expect(screen.getByText('原文内容')).not.toBeNull()
@@ -131,7 +134,7 @@ describe('ResponsiveWorkspace', () => {
     expect(screen.getByText('成品内容')).not.toBeNull()
     expect(screen.getAllByRole('separator')).toHaveLength(1)
 
-    fireEvent.click(screen.getByRole('button', { name: '原文' }))
+    fireEvent.click(screen.getByRole('button', { name: '切换到原文' }))
     expect(screen.getByText('原文内容')).not.toBeNull()
     expect(screen.getByText('创作内容')).not.toBeNull()
     expect(screen.queryByText('成品内容')).toBeNull()

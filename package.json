@@ -6,8 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "wxt",
+    "dev:publisher": "pnpm --filter @qiushui/publisher-playground dev",
     "dev:firefox": "wxt -b firefox",
     "build": "wxt build",
+    "build:publisher": "pnpm --filter @qiushui/publisher-playground build",
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
