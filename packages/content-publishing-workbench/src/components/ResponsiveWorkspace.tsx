@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Group, Panel, Separator, type Layout, useGroupRef } from 'react-resizable-panels'
-import { RotateCcw } from 'lucide-react'
+import { FileText, Images, PenLine, RotateCcw } from 'lucide-react'
 import { Button } from './ui/button'
+import { ButtonGroup } from './ui/button-group'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import {
   DEFAULT_PUBLISHER_LAYOUT,
@@ -13,12 +14,13 @@ const paneIds: WorkbenchPaneId[] = ['source', 'composer', 'output']
 const paneLabels: Record<WorkbenchPaneId, string> = { source: '原文', composer: '创作', output: '成品' }
 
 interface ResponsiveWorkspaceProps {
+  header?: ReactNode
   layout: PublisherLayout
   onLayoutChange(layout: PublisherLayout): void
   panes: Record<WorkbenchPaneId, ReactNode>
 }
 
-export function ResponsiveWorkspace({ layout, onLayoutChange, panes }: ResponsiveWorkspaceProps) {
+export function ResponsiveWorkspace({ header, layout, onLayoutChange, panes }: ResponsiveWorkspaceProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const groupRef = useGroupRef()
   const [width, setWidth] = useState(1200)
@@ -68,30 +70,48 @@ export function ResponsiveWorkspace({ layout, onLayoutChange, panes }: Responsiv
     if (mode !== 'narrow') groupRef.current?.setLayout(defaultLayout)
   }, [groupRef, layout.sizes, mode, panelGroupId])
 
-  return <div ref={rootRef} className="publishing-workbench__workspace" data-layout-mode={mode}>
-    <div className="publishing-workbench__layout-toolbar" aria-label="区域显示设置">
-      {paneIds.map(id => <Button
-        key={id}
-        size="sm"
-        variant={layout.visible[id] ? 'secondary' : 'outline'}
-        disabled={layout.visible[id] && visibleIds.length === 1}
-        aria-pressed={layout.visible[id]}
-        onClick={() => togglePane(id)}
-      >{layout.visible[id] ? `隐藏${paneLabels[id]}` : `显示${paneLabels[id]}`}</Button>)}
-      <Button size="icon-sm" variant="ghost" aria-label="重置布局" onClick={() => onLayoutChange(structuredClone(DEFAULT_PUBLISHER_LAYOUT))}>
-        <RotateCcw aria-hidden="true" />
-      </Button>
-    </div>
+  const paneIcons = { source: FileText, composer: PenLine, output: Images }
 
-    {mode === 'medium' && <div className="publishing-workbench__pane-switcher" aria-label="选择主要区域">
-      {visibleIds.map(id => <Button
-        key={id}
-        size="sm"
-        variant={layout.activePane === id ? 'default' : 'ghost'}
-        aria-pressed={layout.activePane === id}
-        onClick={() => selectPane(id)}
-      >{paneLabels[id]}</Button>)}
-    </div>}
+  return <div ref={rootRef} className="publishing-workbench__workspace" data-layout-mode={mode}>
+    <div className="publishing-workbench__topbar">
+      {header}
+      <div className="publishing-workbench__topbar-actions">
+        {mode === 'medium' && <ButtonGroup className="publishing-workbench__pane-switcher" aria-label="选择主要区域">
+          {visibleIds.map(id => {
+            const Icon = paneIcons[id]
+            return <Button
+              key={id}
+              size="icon-sm"
+              variant={layout.activePane === id ? 'default' : 'outline'}
+              aria-label={`切换到${paneLabels[id]}`}
+              aria-pressed={layout.activePane === id}
+              title={`切换到${paneLabels[id]}`}
+              onClick={() => selectPane(id)}
+            ><Icon aria-hidden="true" /></Button>
+          })}
+        </ButtonGroup>}
+        <ButtonGroup className="publishing-workbench__layout-toolbar" aria-label="区域显示设置">
+          {paneIds.map(id => {
+            const Icon = paneIcons[id]
+            const label = layout.visible[id] ? `隐藏${paneLabels[id]}` : `显示${paneLabels[id]}`
+            return <Button
+              key={id}
+              size="icon-sm"
+              variant={layout.visible[id] ? 'secondary' : 'outline'}
+              disabled={layout.visible[id] && visibleIds.length === 1}
+              aria-label={label}
+              aria-pressed={layout.visible[id]}
+              title={label}
+              onClick={() => togglePane(id)}
+            ><Icon aria-hidden="true" /></Button>
+          })}
+          <Button size="icon-sm" variant="outline" aria-label="重置布局" title="重置布局"
+            onClick={() => onLayoutChange(structuredClone(DEFAULT_PUBLISHER_LAYOUT))}>
+            <RotateCcw aria-hidden="true" />
+          </Button>
+        </ButtonGroup>
+      </div>
+    </div>
 
     {mode === 'narrow' ? <Tabs value={layout.activePane} onValueChange={value => selectPane(value as WorkbenchPaneId)}>
       <TabsList className="publishing-workbench__mobile-tabs">

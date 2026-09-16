@@ -63,12 +63,27 @@ function createAdapters(): WorkbenchAdapters {
 }
 
 describe('AI generation controls', () => {
+  it('keeps icon-only creation settings in the composer header', async () => {
+    render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={createAdapters()} />)
+
+    await screen.findByRole('button', { name: '选择模型' })
+    const header = screen.getByRole('heading', { name: '创作稿' }).closest('.publishing-workbench__pane-header')
+    const settings = header?.querySelector('[role="group"][aria-label="创作设置"]')
+    const buttons = settings?.querySelectorAll('button') ?? []
+
+    expect(settings).not.toBeNull()
+    expect(buttons).toHaveLength(3)
+    expect([...buttons].every(button => button.textContent?.trim() === '')).toBe(true)
+  })
+
   it('generates editable Markdown from a selected prompt template', async () => {
     const adapters = createAdapters()
     render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
 
-    fireEvent.click(await screen.findByRole('combobox', { name: '系统提示词' }))
-    fireEvent.click(await screen.findByRole('option', { name: '知识卡片' }))
+    fireEvent.click(await screen.findByRole('button', { name: '选择提示词模板' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: '知识卡片' }))
+    expect((screen.getByRole('textbox', { name: '创作指令' }) as HTMLTextAreaElement).value)
+      .toBe('提炼核心观点。')
     fireEvent.click(screen.getByRole('button', { name: '生成创作稿' }))
 
     await waitFor(() => expect(adapters.generate).toHaveBeenCalledWith({
@@ -96,21 +111,18 @@ describe('AI generation controls', () => {
     await waitFor(() => expect(adapters.generate).toHaveBeenCalledOnce())
   })
 
-  it('uses a one-off manual system prompt without changing the template list', async () => {
+  it('uses edited prompt content without changing the template list', async () => {
     const adapters = createAdapters()
     const user = userEvent.setup()
     render(<ContentPublishingWorkbench initialDraft={createDraft(snapshot)} adapters={adapters} />)
 
-    await user.click(await screen.findByRole('tab', { name: '手工输入' }))
-    fireEvent.change(screen.getByRole('textbox', { name: '手工系统提示词' }), {
+    fireEvent.change(await screen.findByRole('textbox', { name: '创作指令' }), {
       target: { value: '用故事化语气改写。' },
     })
-    await user.click(screen.getByRole('tab', { name: '提示词模板' }))
     await waitFor(() => expect(adapters.saveDraft).toHaveBeenCalledWith(expect.objectContaining({
-      instruction: { mode: 'template', templateId: '', manualContent: '用故事化语气改写。' },
+      instruction: { mode: 'manual', templateId: '', manualContent: '用故事化语气改写。' },
     })))
-    await user.click(screen.getByRole('tab', { name: '手工输入' }))
-    expect((screen.getByRole('textbox', { name: '手工系统提示词' }) as HTMLTextAreaElement).value)
+    expect((screen.getByRole('textbox', { name: '创作指令' }) as HTMLTextAreaElement).value)
       .toBe('用故事化语气改写。')
     const generateButton = screen.getByRole('button', { name: '生成创作稿' }) as HTMLButtonElement
     await waitFor(() => expect(generateButton.disabled).toBe(false))
@@ -133,7 +145,7 @@ describe('AI generation controls', () => {
     expect(screen.getByRole('button', { name: '生成创作稿' }).hasAttribute('disabled')).toBe(true)
   })
 
-  it('shows loading and a settings action when template mode has no usable template', async () => {
+  it('keeps manual prompt input available when there are no prompt templates', async () => {
     const adapters = createAdapters()
     let resolveModels!: (models: Awaited<ReturnType<WorkbenchAdapters['listModels']>>) => void
     vi.mocked(adapters.listModels).mockReturnValue(new Promise(resolve => { resolveModels = resolve }))
@@ -145,8 +157,8 @@ describe('AI generation controls', () => {
       platformId: 'custom-1', modelId: 'model-a', reasoning: 'off', label: 'Model A', groupLabel: '自定义',
       reasoningLevels: ['off'],
     }]))
-    fireEvent.click(await screen.findByRole('button', { name: '打开设置' }))
-    expect(adapters.openSettings).toHaveBeenCalledOnce()
+    expect(await screen.findByRole('textbox', { name: '创作指令' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: '选择提示词模板' })).not.toBeNull()
     view.unmount()
   })
 
@@ -187,6 +199,10 @@ describe('AI generation controls', () => {
       visible: { source: false, composer: true, output: true },
       activePane: 'composer',
     })
+    expect(screen.queryByText('CONTENT STUDIO')).toBeNull()
+    expect(screen.queryByText('SOURCE')).toBeNull()
+    expect(screen.queryByText('COMPOSE')).toBeNull()
+    expect(screen.queryByText('OUTPUT')).toBeNull()
   })
 
   it('waits for stored layout hydration before enabling layout changes', async () => {

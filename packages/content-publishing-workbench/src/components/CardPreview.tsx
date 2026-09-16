@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { Archive, ChevronLeft, ChevronRight, Download, FilePlus2 } from 'lucide-react'
 import { buildDisplayPages, CardCanvas, type DisplayPage } from '../card/CardCanvas'
 import { CARD_THEMES } from '../card/themes'
 import {
@@ -13,6 +13,7 @@ import type { PagePlan } from '../layout/types'
 import { parseCardMarkdown } from '../markdown/parse'
 import type { CardThemeId, DownloadArtifact, SourceSnapshot } from '../types'
 import { Button } from './ui/button'
+import { ButtonGroup } from './ui/button-group'
 
 interface CardPreviewProps {
   markdown: string
@@ -224,85 +225,84 @@ export function CardPreview({
   return <div className="publishing-workbench__card-builder">
     <MeasureStage ref={measureRef} themeId="layout" />
 
-    <div className="publishing-workbench__theme-picker" aria-label="卡片样式">
-      {CARD_THEMES.map(theme => <button
-        key={theme.id}
-        type="button"
-        className="publishing-workbench__theme-option"
-        data-theme={theme.id}
-        data-selected={theme.id === themeId || undefined}
-        aria-pressed={theme.id === themeId}
-        title={theme.description}
-        onClick={() => onThemeChange(theme.id)}
-      >
-        <span className={`publishing-workbench__theme-swatch xhs-card--${theme.id}`} aria-hidden="true" />
-        <span>{theme.label}</span>
-      </button>)}
-    </div>
-
-    <div className="publishing-workbench__card-actions">
-      <Button
-        size="sm"
-        variant={coverEnabled ? 'default' : 'outline'}
-        aria-pressed={coverEnabled}
-        onClick={() => onCoverChange(!coverEnabled)}
-      >{coverEnabled ? '移除封面' : '添加封面'}</Button>
-      <span>{planning ? '正在排版…' : paginationError ? '排版失败' : pages.length ? `共 ${pages.length} 张` : '暂无可预览内容'}</span>
-    </div>
-
-    {paginationError ? <div className="publishing-workbench__pagination-error" role="alert">
-      <span>卡片排版失败，请重试。</span>
-      <Button size="sm" variant="outline" onClick={() => setPlanAttempt(attempt => attempt + 1)}>重新排版</Button>
-    </div> : null}
-
-    <div ref={previewRef} className="publishing-workbench__card-viewport">
-      {pages.length ? virtualPages.map(page => <div
-        key={`${page.kind}-${page.index}`}
-        className="publishing-workbench__card-stage"
-        data-current={page.index === safePage || undefined}
-        aria-hidden={page.index !== safePage}
-        style={{ height: CARD_GEOMETRY.height * scale }}
-      >
-        <div className="publishing-workbench__card-scale" style={{ transform: `translateX(-50%) scale(${scale})` }}>
-          <CardCanvas page={page} pageCount={pages.length} themeId={themeId} title={title} meta={meta} />
-        </div>
-      </div>) : <div className="publishing-workbench__output-placeholder">
-        <p>{paginationError ? '无法预览卡片' : '等待创作稿'}</p>
-        <span>{paginationError ? '重新排版后将在这里恢复预览。' : '生成或输入 Markdown 后，这里会自动分页。'}</span>
-      </div>}
-    </div>
-
-    {pages.length ? <>
-      <div className="publishing-workbench__page-controls">
-        <Button size="icon-sm" variant="outline" aria-label="上一页" disabled={safePage === 0}
-          onClick={() => onPageChange(safePage - 1)}><ChevronLeft aria-hidden="true" /></Button>
-        <span>{safePage + 1} / {pages.length}</span>
-        <Button size="icon-sm" variant="outline" aria-label="下一页" disabled={safePage === pages.length - 1}
-          onClick={() => onPageChange(safePage + 1)}><ChevronRight aria-hidden="true" /></Button>
+    <div className="publishing-workbench__pane-header">
+      <h2 id="output-pane-title">发布成品</h2>
+      <div className="publishing-workbench__output-heading-actions">
+        <span>{planning ? '正在排版…' : paginationError ? '排版失败' : pages.length ? `共 ${pages.length} 张` : '暂无内容'}</span>
+        <ButtonGroup aria-label="成品操作">
+          <Button
+            size="icon-sm"
+            variant={coverEnabled ? 'default' : 'outline'}
+            aria-label={coverEnabled ? '移除封面' : '添加封面'}
+            aria-pressed={coverEnabled}
+            title={coverEnabled ? '移除封面' : '添加封面'}
+            onClick={() => onCoverChange(!coverEnabled)}
+          ><FilePlus2 aria-hidden="true" /></Button>
+          <Button size="icon-sm" variant="outline" aria-label="保存当前页" title="保存当前页"
+            disabled={!pages.length || Boolean(exporting)} onClick={() => void saveCurrentPage()}>
+            <Download aria-hidden="true" />
+          </Button>
+          <Button size="icon-sm" aria-label="保存全部" title="保存全部"
+            disabled={!pages.length || Boolean(exporting)} onClick={() => void saveAllPages()}>
+            <Archive aria-hidden="true" />
+          </Button>
+        </ButtonGroup>
       </div>
-      <div className="publishing-workbench__thumbnails" aria-label="页面缩略图">
-        {pages.map(page => <button
-          key={page.index}
+    </div>
+
+    <div className="publishing-workbench__card-builder-body">
+      <div className="publishing-workbench__theme-picker" aria-label="卡片样式">
+        {CARD_THEMES.map(theme => <button
+          key={theme.id}
           type="button"
-          aria-label={`第 ${page.index + 1} 页${page.kind === 'cover' ? '，封面' : ''}`}
-          aria-current={page.index === safePage ? 'page' : undefined}
-          className={`publishing-workbench__thumbnail xhs-card--${themeId}`}
-          onClick={() => onPageChange(page.index)}
-        ><span>{page.kind === 'cover' ? '封' : page.index + 1}</span></button>)}
+          className="publishing-workbench__theme-option"
+          data-theme={theme.id}
+          data-selected={theme.id === themeId || undefined}
+          aria-pressed={theme.id === themeId}
+          title={theme.description}
+          onClick={() => onThemeChange(theme.id)}
+        >
+          <span className={`publishing-workbench__theme-swatch xhs-card--${theme.id}`} aria-hidden="true" />
+          <span>{theme.label}</span>
+        </button>)}
       </div>
-      {pages.length > 20 ? <p className="publishing-workbench__export-warning" role="status">
-        共 {pages.length} 页，全部导出会逐页处理，可能需要较长时间。
-      </p> : null}
-      <div className="publishing-workbench__export-actions">
-        <Button variant="outline" disabled={Boolean(exporting)} onClick={() => void saveCurrentPage()}>
-          <Download aria-hidden="true" />{exporting === 'current' ? '正在生成…' : '保存当前页'}
-        </Button>
-        <Button disabled={Boolean(exporting)} onClick={() => void saveAllPages()}>
-          <Download aria-hidden="true" />{exporting === 'all' ? '正在打包…' : '保存全部'}
-        </Button>
+
+      {paginationError ? <div className="publishing-workbench__pagination-error" role="alert">
+        <span>卡片排版失败，请重试。</span>
+        <Button size="sm" variant="outline" onClick={() => setPlanAttempt(attempt => attempt + 1)}>重新排版</Button>
+      </div> : null}
+
+      <div ref={previewRef} className="publishing-workbench__card-viewport">
+        {pages.length ? virtualPages.map(page => <div
+          key={`${page.kind}-${page.index}`}
+          className="publishing-workbench__card-stage"
+          data-current={page.index === safePage || undefined}
+          aria-hidden={page.index !== safePage}
+          style={{ height: CARD_GEOMETRY.height * scale }}
+        >
+          <div className="publishing-workbench__card-scale" style={{ transform: `translateX(-50%) scale(${scale})` }}>
+            <CardCanvas page={page} pageCount={pages.length} themeId={themeId} title={title} meta={meta} />
+          </div>
+        </div>) : <div className="publishing-workbench__output-placeholder">
+          <p>{paginationError ? '无法预览卡片' : '等待创作稿'}</p>
+          <span>{paginationError ? '重新排版后将在这里恢复预览。' : '生成或输入 Markdown 后，这里会自动分页。'}</span>
+        </div>}
       </div>
-      {exportError ? <p className="publishing-workbench__error" role="alert">{exportError}</p> : null}
-    </> : null}
+
+      {pages.length ? <>
+        <div className="publishing-workbench__page-controls">
+          <Button size="icon-sm" variant="outline" aria-label="上一页" disabled={safePage === 0}
+            onClick={() => onPageChange(safePage - 1)}><ChevronLeft aria-hidden="true" /></Button>
+          <span>{safePage + 1} / {pages.length}</span>
+          <Button size="icon-sm" variant="outline" aria-label="下一页" disabled={safePage === pages.length - 1}
+            onClick={() => onPageChange(safePage + 1)}><ChevronRight aria-hidden="true" /></Button>
+        </div>
+        {pages.length > 20 ? <p className="publishing-workbench__export-warning" role="status">
+          共 {pages.length} 页，全部导出会逐页处理，可能需要较长时间。
+        </p> : null}
+        {exportError ? <p className="publishing-workbench__error" role="alert">{exportError}</p> : null}
+      </> : null}
+    </div>
 
     {exportRender ? <div className="publishing-workbench__export-stage" aria-hidden="true" ref={exportHostRef}>
       <CardCanvas page={exportRender.page} pageCount={exportRender.pageCount} themeId={exportRender.themeId} title={title} meta={meta} />
