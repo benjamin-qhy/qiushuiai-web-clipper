@@ -122,7 +122,7 @@ Obsidian Vault（File System Access API）
 - `entrypoints/content.ts` — 飞书 Content Script，注入到 `*.feishu.cn/docx/*` 和 `*.feishu.cn/wiki/*`，处理 `EXTRACT_DOC` 和 `DOWNLOAD_IMAGE` 消息
 - `entrypoints/kdocs.content.ts` — 金山文档 Content Script，注入到 `*.kdocs.cn/l/*`，处理 `EXTRACT_DOC` 和 `DOWNLOAD_IMAGE` 消息
 - `entrypoints/general.content.ts` — 通用网页 Content Script，注入到所有页面（`<all_urls>`），仅处理 `EXTRACT_DOC`（提取页面标题、正文，返回 `DocContent` 中的 `markdown` 字段，而非 `blocks`）
-- `entrypoints/popup/App.vue` — 弹窗 UI，触发提取和保存
+- `entrypoints/popup/App.vue` — 弹窗 UI，触发提取和保存；已移除“发布到社交媒体”按钮
 - `entrypoints/publisher-sidepanel/` — 内容发布工作台 React 入口；Chrome 以原生侧边栏打开，Firefox 降级为独立扩展页；从本地草稿恢复无 YAML 的完整原文 Markdown，并通过宿主适配器提供模型、提示词、生成和设置入口
 - `packages/publisher-playground/` — 内容发布工作台的独立 Vite Web 预览；使用示例稿件、本地存储和模拟 AI 适配器，可在普通浏览器中调试布局、编辑、分页、主题与导出，不读取插件设置或模型凭据
 - `entrypoints/douyin-sidepanel/App.vue` — 抖音收藏批量导入侧边栏；当前页为抖音收藏页时点击插件图标直接打开，支持抓取、勾选、刷新和批量保存到 Get 笔记
