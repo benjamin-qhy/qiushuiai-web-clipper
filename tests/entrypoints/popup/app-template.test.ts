@@ -5,10 +5,10 @@ describe('popup publishing workbench action', () => {
   const popup = readFileSync('entrypoints/popup/App.vue', 'utf8')
   const background = readFileSync('entrypoints/background.ts', 'utf8')
 
-  it('offers publishing after content extraction', () => {
-    expect(popup).toContain('发布到社交媒体')
-    expect(popup).toContain('@click="handleOpenPublisher"')
-    expect(popup).toContain('createSourceSnapshot(mergedDoc())')
+  it('omits the publishing action from the popup', () => {
+    expect(popup).not.toContain('发布到社交媒体')
+    expect(popup).not.toContain('@click="handleOpenPublisher"')
+    expect(popup).not.toContain('createSourceSnapshot(mergedDoc())')
   })
 
   it('keeps Douyin routing and enables the publisher panel on normal pages', () => {
