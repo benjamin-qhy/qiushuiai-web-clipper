@@ -51,10 +51,62 @@ it('pairs through the extension message boundary, persists its credential privat
     const digestFailure = await send({ action: 'simulate' })
     expect(digestFailure.data.tasks.find((task: any) => task.taskId === digestTask.taskId).targets[0].reason).toMatchObject({ code: 'ASSET_DIGEST_MISMATCH', causeKnown: true, stage: 'download' })
     const httpTask = await submitImage('http')
-    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => url.endsWith(`/assets/${asset.assetId}/content`) ? Promise.resolve(new Response('', { status: 503 })) : originalFetch(url, init))
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => url.endsWith(`/assets/${asset.assetId}/content`) ? Promise.resolve(new Response('', { status: 403 })) : originalFetch(url, init))
     const httpFailure = await send({ action: 'simulate' })
     expect(httpFailure.data.tasks.find((task: any) => task.taskId === httpTask.taskId).targets[0].reason).toMatchObject({ code: 'ASSET_HTTP_ERROR', causeKnown: true, stage: 'download' })
     vi.stubGlobal('fetch', originalFetch)
+    const metadataTask = await submitImage('metadata-denied')
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => url.endsWith(`/assets/${asset.assetId}`) ? Promise.resolve(new Response('{}', { status: 403 })) : originalFetch(url, init))
+    const metadataFailure = await send({ action: 'simulate' })
+    expect(metadataFailure.data.tasks.find((task: any) => task.taskId === metadataTask.taskId).targets[0].reason).toMatchObject({ code: 'ASSET_HTTP_ERROR', causeKnown: true, stage: 'download' })
+    vi.stubGlobal('fetch', originalFetch)
+    const retryTask = await submitImage('bounded-retries')
+    let downloads = 0
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      if (url.endsWith(`/assets/${asset.assetId}/content`)) { downloads++; return Promise.resolve(new Response('', { status: 503, headers: { 'Retry-After': '8' } })) }
+      return originalFetch(url, init)
+    })
+    const clock = vi.spyOn(Date, 'now'); const baseTime = Date.now()
+    try {
+      clock.mockReturnValue(baseTime)
+      await send({ action: 'simulate' }); expect(downloads).toBe(1)
+      clock.mockReturnValue(baseTime + 5000); await send({ action: 'simulate' }); expect(downloads).toBe(1)
+      clock.mockReturnValue(baseTime + 8000); await send({ action: 'simulate' }); expect(downloads).toBe(2)
+      clock.mockReturnValue(baseTime + 23000)
+      const exhausted = await send({ action: 'simulate' })
+      expect(exhausted.data.tasks.find((task: any) => task.taskId === retryTask.taskId).targets[0]).toMatchObject({ state: 'failed', reason: { code: 'ASSET_HTTP_ERROR', retryable: false } })
+      await send({ action: 'simulate' }); expect(downloads).toBe(3)
+    } finally { clock.mockRestore(); vi.stubGlobal('fetch', originalFetch) }
+    const receiptTask = await submitImage('lost-event-response')
+    let receiptIntents = 0
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      const response = await originalFetch(url, init)
+      if (url.endsWith('/submit-intent')) receiptIntents++
+      if (url.endsWith('/events')) throw new TypeError('response lost after accepted event')
+      return response
+    })
+    expect((await send({ action: 'simulate' })).error).toBeTruthy()
+    vi.stubGlobal('fetch', originalFetch)
+    registerPublishingConnection()
+    const replayed = await send({ action: 'simulate' })
+    expect(replayed.data.tasks.find((task: any) => task.taskId === receiptTask.taskId).counts).toEqual({ draft_saved: 1 })
+    expect(receiptIntents).toBe(1)
+    const interruptedTask = await submitImage('lost-submit-response')
+    let intents = 0
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      const response = await originalFetch(url, init)
+      if (url.endsWith('/submit-intent')) { intents++; throw new TypeError('connection lost after server accepted intent') }
+      return response
+    })
+    expect((await send({ action: 'simulate' })).error).toBeTruthy()
+    vi.stubGlobal('fetch', originalFetch)
+    registerPublishingConnection() // service worker restarted, persistent storage retained
+    const recovered = await send({ action: 'simulate' })
+    const interrupted = recovered.data.tasks.find((task: any) => task.taskId === interruptedTask.taskId).targets[0]
+    expect(interrupted).toMatchObject({ state: 'outcome_unknown', reason: { causeKnown: false, retryable: false } })
+    expect(intents).toBe(1)
+    const queried = await send({ action: 'reconcile', targetId: interrupted.id })
+    expect(queried.data.tasks.find((task: any) => task.taskId === interruptedTask.taskId).targets[0].state).toBe('outcome_unknown')
     const keys = await fetch(`${server.url}/v1/keys`, { headers: { Authorization: `Bearer ${adminKey}` } }).then(response => response.json())
     await api(`/keys/${keys.keys[0].id}/revoke`, {})
     await alarmListener({ name: 'haiqiai-publishing-heartbeat' })

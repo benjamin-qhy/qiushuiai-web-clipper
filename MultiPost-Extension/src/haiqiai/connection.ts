@@ -22,7 +22,7 @@ interface SavedState {
 }
 class ConnectionError extends Error {
   status: number;
-  constructor(status: number, message: string) { super(message); this.status = status; }
+  constructor(status: number, message: string, readonly retryAfter: string | null = null) { super(message); this.status = status; }
 }
 function endpoint(value: unknown): string {
   if (typeof value !== "string") throw new Error(localize("hqEnterApi"));
@@ -39,8 +39,8 @@ async function request(apiUrl: string, path: string, key?: string, body?: unknow
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
-    const message = response.status === 401 ? localize("hqInvalidKey") : response.status === 409 ? localize("hqPairConflict") : localize("hqRejected");
-    throw new ConnectionError(response.status, message);
+    const message = response.status === 401 ? localize("hqInvalidKey") : response.status === 409 ? localize("hqApiConflict") : localize("hqRejected");
+    throw new ConnectionError(response.status, message, response.headers.get("Retry-After"));
   }
   return response.json();
 }
@@ -81,6 +81,7 @@ export function registerPublishingConnection() {
     state.simulation ||= {};
     await runSimulation(state.simulation, { apiUrl, key, executorId,
       request: (path, body, id) => request(apiUrl, path, key, body, id), save: () => save(state) });
+    if (state.simulation.retryAt) await chrome.alarms.create(ALARM + "-retry", { when: state.simulation.retryAt });
     return refresh(state);
   };
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
@@ -111,10 +112,15 @@ export function registerPublishingConnection() {
         state.view.tasks = [...(state.view.tasks || []), ...result.tasks]; state.view.nextCursor = result.nextCursor;
         await save(state); return state.view;
       }
+      if (message.action === "reconcile" && state.connection) {
+        if (typeof message.targetId !== "string" || !state.view.tasks?.some(task => task.targets.some(target => target.id === message.targetId))) throw new Error(localize("hqUnsupportedAction"));
+        await request(state.connection.apiUrl, `/targets/${encodeURIComponent(message.targetId)}/reconcile`, state.connection.key, {});
+        await simulate(state); return refresh(state);
+      }
       if (message.action === "simulate") return simulate(state);
       if (message.action === "status" || message.action === "refresh") return refresh(state);
       throw new Error(localize("hqUnsupportedAction"));
-    }).then(data => respond({ data }), error => respond({ error: error instanceof ConnectionError ? error.message : error instanceof TypeError ? localize("hqInvalidEndpoint") : error.message }));
+    }).then(data => respond({ data }), error => respond({ error: error instanceof ConnectionError ? error.message : error instanceof TypeError ? localize(message.action === "pair" ? "hqInvalidEndpoint" : "hqSimulationPending") : error.message }));
     return true;
   });
   const beat = () => serialized(async () => {
@@ -122,7 +128,7 @@ export function registerPublishingConnection() {
     try { return await simulate(state); }
     catch { state.view.error = localize("hqSimulationPending"); await save(state); }
   }).catch(() => undefined);
-  chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === ALARM) return beat(); });
+  chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === ALARM || alarm.name === ALARM + "-retry") return beat(); });
   const schedule = () => { void chrome.alarms.create(ALARM, { periodInMinutes: 0.5 }); void beat(); };
   chrome.runtime.onStartup.addListener(schedule);
   chrome.runtime.onInstalled.addListener(schedule);

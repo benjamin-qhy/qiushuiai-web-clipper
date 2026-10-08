@@ -182,6 +182,7 @@ it('accepts confirmed simulation tasks atomically, locks defaults, isolates clai
   const event = { leaseToken: claim.attempt.leaseToken, eventId: randomUUID(), seq: 1, stage: 'simulation', state: 'draft_saved', evidence: { kind: 'simulation_receipt', platform: 'xiaohongshu', accountId: account.id, observedAt: '2026-10-08T08:00:00Z', detail: '模拟草稿，无真实发布' } }
   expect((await call(`/attempts/${claim.attempt.id}/events`, event, edge.key)).status).toBe(403)
   expect((await call(`/attempts/${claim.attempt.id}/events`, { ...event, state: 'published' }, chrome.key)).status).toBe(422)
+  await call(`/attempts/${claim.attempt.id}/submit-intent`, { leaseToken: claim.attempt.leaseToken, contentDigest: claim.attempt.target.contentDigest, accountId: account.id, assetsChecked: true }, chrome.key)
   expect((await call(`/attempts/${claim.attempt.id}/events`, event, chrome.key)).status).toBe(200)
   expect((await call(`/attempts/${claim.attempt.id}/events`, event, chrome.key)).status).toBe(200)
   expect((await call(`/attempts/${claim.attempt.id}/events`, { ...event, eventId: randomUUID() }, chrome.key)).status).toBe(409)

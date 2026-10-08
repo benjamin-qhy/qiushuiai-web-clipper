@@ -178,5 +178,44 @@
   },
   "hqAssetUnknown": {
     "message": "素材读取中断，具体原因尚未确认"
+  },
+  "hqResultUnconfirmed": {
+    "message": "执行曾记录提交意图，但没有可核对的模拟完成记录；结果原因尚未确认"
+  },
+  "hqReconcileAction": {
+    "message": "仅核对已有记录；不得自动重新发布。模拟任务不会产生真实平台作品。"
+  },
+  "hqOutcomeUnknown": {
+    "message": "结果未知"
+  },
+  "hqCancelled": {
+    "message": "已取消"
+  },
+  "hqReconcile": {
+    "message": "核对已有结果（不重发）"
+  },
+  "hqCancelPending": {
+    "message": "已请求取消，等待执行端确认停止"
+  },
+  "hqSubmitIntent": {
+    "message": "已记录提交意图，后续仅核对结果"
+  },
+  "hqApiConflict": {
+    "message": "任务状态已变化，请刷新状态后核对，勿重复提交"
+  },
+  "hqStageValidation": {
+    "message": "校验阶段"
+  },
+  "hqStageDownload": {
+    "message": "素材下载阶段"
+  },
+  "hqStageSimulation": {
+    "message": "模拟保存阶段"
+  },
+  "hqStageReconciliation": {
+    "message": "结果核对阶段"
+  },
+  "hqStageSubmit": {
+    "message": "提交前确认阶段"
   }
 }

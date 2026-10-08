@@ -10,10 +10,10 @@ export default function PublishingWorkspace() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function run(action: "status" | "refresh" | "pair" | "simulate" | "nextTasks") {
+  async function run(action: "status" | "refresh" | "pair" | "simulate" | "nextTasks" | "reconcile", targetId?: string) {
     setBusy(true); setError("");
     try {
-      const result = await chrome.runtime.sendMessage({ type: "HAIQIAI_PUBLISHING_CONNECTION", action, ...(action === "pair" ? { apiUrl, code } : {}) });
+      const result = await chrome.runtime.sendMessage({ type: "HAIQIAI_PUBLISHING_CONNECTION", action, ...(targetId ? { targetId } : {}), ...(action === "pair" ? { apiUrl, code } : {}) });
       if (result.error) throw new Error(result.error);
       setView(result.data);
       if (action === "pair") setCode("");
@@ -22,6 +22,7 @@ export default function PublishingWorkspace() {
   }
   useEffect(() => { if (typeof globalThis.chrome?.runtime?.sendMessage === "function") void run("status"); }, []);
   const statusLabels = { disconnected: "hqPublishDisconnected", connected: "hqConnected", offline: "hqOffline", revoked: "hqRevoked" } as const;
+  const stages: Record<string, "hqStageValidation" | "hqStageDownload" | "hqStageSimulation" | "hqStageReconciliation" | "hqStageSubmit"> = { validation: "hqStageValidation", download: "hqStageDownload", simulation: "hqStageSimulation", reconciliation: "hqStageReconciliation", submit_intent: "hqStageSubmit" };
   return (
     <HeroUIProvider>
       <main className="mx-auto flex max-w-3xl flex-col gap-6 p-8">
@@ -63,10 +64,13 @@ export default function PublishingWorkspace() {
                   <h4 className="font-medium">{message("hqSimulationTask")}</h4>
                   <p className="break-all text-sm text-default-600">{task.taskId}</p>
                   {task.targets.map(target => <div key={target.id} className="flex flex-col gap-2">
-                    <p>{target.platform} · {target.clientTargetId} · {message(target.state === "queued" ? "hqQueued" : target.state === "running" ? "hqRunning" : target.state === "draft_saved" ? "hqSimulationSaved" : target.state === "failed" ? "hqFailed" : "hqNeedsAttention")}</p>
+                    <p>{target.platform} · {target.clientTargetId} · {message(target.state === "queued" ? "hqQueued" : target.state === "running" ? "hqRunning" : target.state === "draft_saved" ? "hqSimulationSaved" : target.state === "failed" ? "hqFailed" : target.state === "outcome_unknown" ? "hqOutcomeUnknown" : target.state === "cancelled" ? "hqCancelled" : "hqNeedsAttention")}</p>
                     <details><summary>{message("hqContentSnapshot")}</summary><pre className="whitespace-pre-wrap break-words text-sm">{[target.content.title, target.content.content, target.content.htmlContent].filter(value => typeof value === "string").join("\n\n")}</pre></details>
                     {target.evidence && <p className="text-sm">{target.evidence.detail}</p>}
-                    {target.reason && <p role="alert" className="text-danger">{target.reason.message} · {target.reason.nextAction}</p>}
+                    {target.cancelRequested && <p>{message("hqCancelPending")}</p>}
+                    {target.submitIntentAt && <p className="text-sm">{message("hqSubmitIntent")}</p>}
+                    {target.state === "outcome_unknown" && <Button isDisabled={busy || view.status !== "connected"} onPress={() => void run("reconcile", target.id)}>{message("hqReconcile")}</Button>}
+                    {target.reason && <p role="alert" className="text-danger">{target.reason.message} · {message(stages[target.reason.stage] || "hqStageValidation")} · {target.reason.code} · {target.reason.nextAction}</p>}
                   </div>)}
                 </section>)}
                 {view.nextCursor && <Button onPress={() => void run("nextTasks")} isDisabled={busy}>{message("hqMoreTasks")}</Button>}

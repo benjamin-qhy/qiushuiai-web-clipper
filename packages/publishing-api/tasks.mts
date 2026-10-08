@@ -1,3 +1,4 @@
+import { expireAttempts, recoveryRoute } from './recovery.mts'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { parseFragment, type DefaultTreeAdapterTypes } from 'parse5'
 import { capabilities } from './capabilities.mts'
@@ -8,12 +9,13 @@ import { resolveTarget } from './targets.mts'
 export interface Target {
   id: string; clientTargetId: string; executorId: string; computerId: string; browserId: string; profileId: string;
   accountId: string; platform: string; content: Record<string, unknown>; contentDigest: string; assetIds: string[];
-  state: 'queued' | 'running' | 'draft_saved' | 'failed' | 'needs_attention'; stage: string; updatedAt: string;
-  attemptId?: string; evidence?: Record<string, unknown>; reason?: Record<string, unknown>;
+  state: 'queued' | 'running' | 'draft_saved' | 'failed' | 'needs_attention' | 'cancelled' | 'outcome_unknown'; stage: string; updatedAt: string;
+  reconcileOnly?: boolean; replacesTargetId?: string; reconcileRequested?: boolean; resumeRequested?: boolean; downloadRetryCount?: number; recoveryCount?: number; retryAt?: string; cancelRequested?: boolean; submitIntentAt?: string; attemptId?: string; evidence?: Record<string, unknown>; reason?: Record<string, unknown>;
 }
 export interface Task { id: string; executionMode: 'simulation'; confirmation: Record<string, unknown>; createdAt: string; targets: Target[] }
 export interface Attempt {
   id: string; targetId: string; executorId: string; leaseToken: string; expiresAt: string; seq: number;
+  lateEvidence?: Record<string, unknown>; mode?: 'execute' | 'reconcile'; stoppedAt?: string; submitIntentAt?: string;
   events: { eventId: string; digest: string; result: unknown }[];
 }
 function object(value: unknown, name: string): Record<string, unknown> {
@@ -88,24 +90,33 @@ export function taskRoute({ method, url, body, state, credential, isAdmin, now }
   method?: string; url: URL; body: Record<string, unknown>; state: State; credential?: Credential; isAdmin: boolean; now: number;
 }): { status: number; result: unknown } | undefined {
   const path = url.pathname; const manager = isAdmin || credential?.role === 'skill'; const updatedAt = new Date(now).toISOString()
+  expireAttempts(state, now)
+  const recovery = recoveryRoute({ method, path, body, state, credential, manager, now })
+  if (recovery) return recovery
   if (method === 'POST' && path === '/v1/tasks') {
     if (!manager) fail(403, 'FORBIDDEN', '仅 Skill 或管理身份可以提交任务')
     allowed(body, ['executionMode', 'confirmation', 'targets'])
     if (body.executionMode !== 'simulation') fail(422, 'ADAPTER_NOT_READY', '当前只支持显式 simulation 任务，真实发布尚未验收')
-    const confirmation = object(body.confirmation, 'confirmation'); allowed(confirmation, ['confirmedAt', 'contentRevision'])
+    const confirmation = object(body.confirmation, 'confirmation'); allowed(confirmation, ['confirmedAt', 'contentRevision', 'duplicateRiskAccepted'])
     if (!utc(confirmation.confirmedAt) || Date.parse(confirmation.confirmedAt as string) > now + 60_000) fail(422, 'INVALID_CONFIRMATION', '确认时间必须是有效的 UTC 时间且不能在未来')
     text(confirmation, 'contentRevision')
     if (!Array.isArray(body.targets) || !body.targets.length || body.targets.length > 100) fail(422, 'INVALID_TARGETS', '每项任务需要1至100个目标')
     const targets: Target[] = []; const errors: Record<string, unknown>[] = []; const seen = new Set<string>(); const clientIds = new Set<string>()
     for (const [index, value] of body.targets.entries()) {
       try {
-        const target = object(value, 'target'); allowed(target, ['clientTargetId', 'computerId', 'browserId', 'profileId', 'accountId', 'platform', 'content'])
+        const target = object(value, 'target'); allowed(target, ['clientTargetId', 'computerId', 'browserId', 'profileId', 'accountId', 'platform', 'content', 'replacesTargetId'])
         const clientTargetId = text(target, 'clientTargetId'); const resolved = resolveTarget(state, target)
+        let replacesTargetId: string | undefined
+        if (target.replacesTargetId !== undefined) {
+          replacesTargetId = text(target, 'replacesTargetId')
+          const original = state.tasks.flatMap(task => task.targets).find(item => item.id === replacesTargetId)
+          if (!original || original.state !== 'outcome_unknown' || confirmation.duplicateRiskAccepted !== true) fail(422, 'DUPLICATE_RISK_CONFIRMATION_REQUIRED', '重新发布结果未知的目标需要明确确认重复风险，并引用原目标')
+        }
         const { content, assetIds } = validateContent(state, resolved.platform, target.content)
         const contentDigest = hash(canonical(content)); const fingerprint = canonical([resolved.platform, resolved.accountId, contentDigest])
         if (seen.has(fingerprint) || clientIds.has(clientTargetId)) fail(422, 'DUPLICATE_TARGET', '同一请求中包含重复内容目标或 clientTargetId')
         seen.add(fingerprint); clientIds.add(clientTargetId)
-        targets.push({ id: randomUUID(), clientTargetId, ...resolved, content, contentDigest, assetIds, state: 'queued', stage: 'queued', updatedAt })
+        targets.push({ id: randomUUID(), clientTargetId, ...resolved, ...(replacesTargetId ? { replacesTargetId } : {}), content, contentDigest, assetIds, state: 'queued', stage: 'queued', updatedAt })
       } catch (error) {
         if (!(error instanceof ApiError)) throw error
         errors.push({ clientTargetId: (value as Record<string, unknown>)?.clientTargetId, fieldPath: `targets[${index}]`, code: error.code, message: error.message, nextAction: '修正目标或内容并重新确认' })
@@ -134,19 +145,20 @@ export function taskRoute({ method, url, body, state, credential, isAdmin, now }
     const executorId = path.split('/')[3]
     if (credential?.role !== 'executor' || credential.executorId !== executorId) fail(403, 'FORBIDDEN', '只能领取当前安装的任务')
     const targets = state.tasks.flatMap(task => task.targets).filter(target => target.executorId === executorId)
-    if (targets.some(target => target.state === 'running')) return { status: 200, result: { attempt: null } }
-    const target = targets.find(target => target.state === 'queued')
+    if (targets.some(target => target.state === 'running' || (target.attemptId && !state.attempts.find(item => item.id === target.attemptId)?.stoppedAt && ['needs_attention', 'outcome_unknown'].includes(target.state)))) return { status: 200, result: { attempt: null } }
+    const target = targets.find(target => (target.state === 'queued' && (!target.retryAt || Date.parse(target.retryAt) <= now)) || (['outcome_unknown', 'needs_attention', 'failed'].includes(target.state) && target.reconcileRequested && state.attempts.find(item => item.id === target.attemptId)?.stoppedAt))
     if (!target) return { status: 200, result: { attempt: null } }
-    const attempt: Attempt = { id: randomUUID(), targetId: target.id, executorId, leaseToken: randomBytes(32).toString('base64url'), expiresAt: new Date(now + 120_000).toISOString(), seq: 0, events: [] }
-    state.attempts.push(attempt); target.attemptId = attempt.id; target.state = 'running'; target.stage = 'validation'; target.updatedAt = updatedAt
-    return { status: 200, result: { attempt: { id: attempt.id, leaseToken: attempt.leaseToken, expiresAt: attempt.expiresAt, executionMode: 'simulation', target } } }
+    const mode = target.reconcileRequested ? 'reconcile' : 'execute'
+    const attempt: Attempt = { mode, id: randomUUID(), targetId: target.id, executorId, leaseToken: randomBytes(32).toString('base64url'), expiresAt: new Date(now + 120_000).toISOString(), seq: 0, events: [] }
+    state.attempts.push(attempt); target.attemptId = attempt.id; target.state = 'running'; target.stage = mode === 'reconcile' ? 'reconciliation' : 'validation'; target.updatedAt = updatedAt; delete target.reconcileRequested
+    return { status: 200, result: { attempt: { id: attempt.id, mode, leaseToken: attempt.leaseToken, expiresAt: attempt.expiresAt, executionMode: 'simulation', target } } }
   }
   if (method === 'POST' && /^\/v1\/attempts\/[^/]+\/renew$/.test(path)) {
     fields(body, ['leaseToken'])
     const attempt = state.attempts.find(attempt => attempt.id === path.split('/')[3]); if (!attempt) fail(404, 'ATTEMPT_NOT_FOUND', '执行尝试不存在')
     if (credential?.role !== 'executor' || credential.executorId !== attempt.executorId) fail(403, 'FORBIDDEN', '执行尝试不属于此安装')
     const target = state.tasks.flatMap(task => task.targets).find(target => target.id === attempt.targetId)!
-    if (attempt.leaseToken !== body.leaseToken || Date.parse(attempt.expiresAt) <= now || target.state !== 'running') fail(409, 'INVALID_LEASE', '租约已失效或执行已结束')
+    if (attempt.stoppedAt || target.attemptId !== attempt.id || target.cancelRequested || attempt.leaseToken !== body.leaseToken || Date.parse(attempt.expiresAt) <= now || target.state !== 'running') fail(409, 'INVALID_LEASE', '租约已失效或执行已结束')
     attempt.expiresAt = new Date(now + 120_000).toISOString()
     return { status: 200, result: { expiresAt: attempt.expiresAt } }
   }
@@ -157,23 +169,37 @@ export function taskRoute({ method, url, body, state, credential, isAdmin, now }
     if (attempt.leaseToken !== body.leaseToken) fail(409, 'INVALID_LEASE', '执行凭证不符')
     const eventId = text(body, 'eventId'); const digest = hash(canonical(body)); const saved = attempt.events.find(event => event.eventId === eventId)
     if (saved) { if (saved.digest !== digest) fail(409, 'EVENT_CONFLICT', '重复事件内容不同'); return { status: 200, result: saved.result } }
-    if (Date.parse(attempt.expiresAt) <= now) fail(409, 'LEASE_EXPIRED', '执行租约已过期，请停止；当前阶段不自动重新领取')
     const target = state.tasks.flatMap(task => task.targets).find(target => target.id === attempt.targetId)!
-    if (target.state !== 'running' || body.seq !== attempt.seq + 1) fail(409, 'EVENT_SEQUENCE_CONFLICT', '事件乱序或执行已结束')
-    if (!['running', 'draft_saved', 'failed', 'needs_attention'].includes(String(body.state)) || !['validation', 'download', 'simulation'].includes(String(body.stage))) fail(422, 'INVALID_STATE', '当前模拟执行不能回报真实发布结果')
+    const late = Date.parse(attempt.expiresAt) <= now || !!attempt.stoppedAt || target.attemptId !== attempt.id
+    if (body.seq !== attempt.seq + 1) fail(409, 'EVENT_SEQUENCE_CONFLICT', '事件乱序')
+    if (!late && (target.cancelRequested || target.state !== 'running')) fail(409, 'EVENT_SEQUENCE_CONFLICT', '执行已结束或已请求取消')
+    if (late && !(attempt.submitIntentAt && body.state === 'draft_saved')) fail(409, 'INVALID_LEASE', '旧执行只能补充提交后的核对证据')
+    if (!['running', 'draft_saved', 'failed', 'needs_attention', 'outcome_unknown'].includes(String(body.state)) || !['validation', 'download', 'simulation', 'reconciliation'].includes(String(body.stage))) fail(422, 'INVALID_STATE', '当前模拟执行不能回报真实发布结果')
+    if (body.state === 'outcome_unknown' && !target.submitIntentAt && attempt.mode !== 'reconcile') fail(422, 'INVALID_STATE', '未提交的执行不能声明可能已发布')
+    if (target.submitIntentAt && ['failed', 'needs_attention'].includes(String(body.state))) fail(422, 'RECONCILIATION_REQUIRED', '提交意图后的中断只能标记结果未知并核对')
     if (body.state === 'draft_saved') {
+      if (!target.submitIntentAt) fail(422, 'SUBMIT_INTENT_REQUIRED', '缺少提交意图，不接受完成证据')
       const evidence = object(body.evidence, 'evidence'); allowed(evidence, ['kind', 'platform', 'accountId', 'observedAt', 'detail'])
       if (evidence.kind !== 'simulation_receipt' || evidence.platform !== target.platform || evidence.accountId !== target.accountId || !utc(evidence.observedAt)) fail(422, 'INVALID_EVIDENCE', '模拟证据必须关联当前平台和账号')
       text(evidence, 'detail', 1000)
+      if (late) {
+        attempt.lateEvidence = { ...evidence, contentDigest: target.contentDigest }; attempt.seq++
+        const result = { targetId: target.id, state: target.state, seq: attempt.seq, acceptedForReconciliation: true }
+        attempt.events.push({ eventId, digest, result }); return { status: 200, result }
+      }
       target.evidence = { ...evidence, contentDigest: target.contentDigest }
     }
-    if (body.state === 'failed' || body.state === 'needs_attention') {
+    if (body.state === 'failed' || body.state === 'needs_attention' || body.state === 'outcome_unknown') {
       const reason = object(body.reason, 'reason'); allowed(reason, ['code', 'message', 'stage', 'causeKnown', 'retryable', 'nextAction'])
       if (reason.stage !== body.stage || typeof reason.causeKnown !== 'boolean' || typeof reason.retryable !== 'boolean') fail(422, 'INVALID_REASON', '原因必须包含阶段、是否已知和重试建议')
       for (const key of ['code', 'message', 'nextAction']) text(reason, key, 1000)
+      if (target.submitIntentAt && reason.retryable) fail(422, 'RECONCILIATION_REQUIRED', '提交后不可标记为自动重发')
       target.reason = reason
     }
+    if (body.state === 'outcome_unknown') target.reconcileOnly = true
     target.state = body.state as Target['state']; target.stage = body.stage as string; target.updatedAt = updatedAt; attempt.seq++
+    if (body.state !== 'running') attempt.stoppedAt = updatedAt
+    if (body.state === 'draft_saved') delete target.reason
     const result = { targetId: target.id, state: target.state, seq: attempt.seq }
     attempt.events.push({ eventId, digest, result }); return { status: 200, result }
   }
