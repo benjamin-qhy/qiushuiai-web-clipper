@@ -121,7 +121,7 @@ async function chooseImageLocalDir() {
   }
 }
 
-async function chooseSubDir(target: 'subDir' | 'bookmarkSubDir') {
+async function chooseSubDir() {
   dirPickerError.value = ''
 
   if (!vault.handle.value || !vault.isAuthorized.value) {
@@ -139,7 +139,7 @@ async function chooseSubDir(target: 'subDir' | 'bookmarkSubDir') {
       dirPickerError.value = '请选择当前笔记库路径内的目录'
       return
     }
-    settings.value[target] = relativeParts.join('/')
+    settings.value.subDir = relativeParts.join('/')
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return
@@ -217,10 +217,6 @@ async function testConnection() {
         <div class="nav-group-label">AI</div>
         <a class="nav-item" :class="{ active: activeSection === 'models' }" href="#section-models" @click.prevent="scrollTo('models')">模型配置</a>
         <a class="nav-item" :class="{ active: activeSection === 'prompts' }" href="#section-prompts" @click.prevent="scrollTo('prompts')">提示词管理</a>
-        <div class="bookmark-settings-nav feature-hidden">
-          <div class="nav-group-label">书签</div>
-          <a class="nav-item" :class="{ active: activeSection === 'org' }" href="#section-org" @click.prevent="scrollTo('org')">整理</a>
-        </div>
       </div>
       <div class="nav-footer">v{{ version }}</div>
     </nav>
@@ -254,7 +250,7 @@ async function testConnection() {
           <label class="field-label" for="sub-dir">子目录</label>
           <div class="input-action-row">
             <input id="sub-dir" v-model="settings.subDir" class="field-input" placeholder="Clippings" />
-            <button class="btn-secondary" type="button" @click="chooseSubDir('subDir')">选择目录</button>
+            <button class="btn-secondary" type="button" @click="chooseSubDir()">选择目录</button>
           </div>
           <p class="field-hint">笔记会保存到笔记库下的此子目录，留空则保存到根目录。</p>
         </div>
@@ -404,40 +400,6 @@ async function testConnection() {
       <div class="section-divider"></div>
 
       <SystemPromptSection v-model:prompts="settings.systemPrompts" @save="save" />
-
-      <div class="section-divider"></div>
-
-      <!-- Organization -->
-      <section id="section-org" class="settings-section feature-hidden">
-        <div class="section-header">
-          <h2 class="section-title">整理</h2>
-          <p class="section-desc">书签整理配置</p>
-        </div>
-        <div class="field">
-          <label class="field-label" for="bookmark-inbox">收件箱文件夹</label>
-          <input id="bookmark-inbox" v-model="settings.bookmarkInboxFolder" class="field-input" placeholder="待整理" />
-          <p class="field-hint">将书签收藏到该文件夹后，插件会自动整理其中的内容。</p>
-        </div>
-        <div class="field">
-          <label class="field-label" for="bookmark-sub-dir">Obsidian 子目录</label>
-          <div class="input-action-row">
-            <input id="bookmark-sub-dir" v-model="settings.bookmarkSubDir" class="field-input" placeholder="Bookmarks" />
-            <button class="btn-secondary" type="button" @click="chooseSubDir('bookmarkSubDir')">选择目录</button>
-          </div>
-          <p class="field-hint">整理后的书签笔记将保存到笔记库下的此子目录中。</p>
-        </div>
-        <div class="field">
-          <label class="field-label" for="ai-system-prompt">系统提示词</label>
-          <textarea
-            id="ai-system-prompt"
-            v-model="settings.bookmarkSystemPrompt"
-            class="field-input field-textarea"
-            rows="4"
-          />
-          <p class="field-hint">文件夹结构和输出格式由系统自动附加，此处可追加自定义指令。</p>
-        </div>
-        <p v-if="dirPickerError" class="status-fail field-inline-error">{{ dirPickerError }}</p>
-      </section>
 
       <div class="section-divider"></div>
 
@@ -681,11 +643,6 @@ async function testConnection() {
   margin: -8px 0 18px;
   max-width: 520px;
 }
-.field-textarea {
-  resize: vertical;
-  min-height: 80px;
-  line-height: 1.5;
-}
 .bottom-save {
   display: flex;
   align-items: center;
@@ -693,5 +650,4 @@ async function testConnection() {
   gap: 12px;
   padding: 24px 40px 40px;
 }
-.feature-hidden { display: none; }
 </style>

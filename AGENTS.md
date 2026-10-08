@@ -81,16 +81,14 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - **金山文档**（kdocs.cn）
 - **任意通用网页**
 
-同时内置书签管理功能，支持 AI 自动分类；当前仅隐藏其 UI 入口与配置项，保留代码和已有数据。宿主使用 WXT + Vue 3 + TypeScript 构建，内容发布工作台通过独立 React + shadcn 工作区包接入。
+使用 WXT + Vue 3 + TypeScript 构建。保留多平台模型配置与系统提示词管理；内容发布工作台、图片卡片、独立预览及书签管理已移除，不清除浏览器收藏夹或历史存储数据。
 
 ## 常用命令
 
 ```bash
 pnpm dev                  # 开发模式（Chrome，热重载）
-pnpm dev:publisher        # 独立 Web 预览（普通浏览器，默认 http://localhost:5173）
 pnpm dev:firefox          # 开发模式（Firefox）
 pnpm build                # 构建 Chrome 扩展
-pnpm build:publisher      # 构建独立 Web 预览
 pnpm build:firefox        # 构建 Firefox 扩展
 pnpm zip                  # 打包 Chrome 扩展（zip）
 pnpm zip:firefox          # 打包 Firefox 扩展（zip）
@@ -122,15 +120,12 @@ Obsidian Vault（File System Access API）
 - `entrypoints/content.ts` — 飞书 Content Script，注入到 `*.feishu.cn/docx/*` 和 `*.feishu.cn/wiki/*`，处理 `EXTRACT_DOC` 和 `DOWNLOAD_IMAGE` 消息
 - `entrypoints/kdocs.content.ts` — 金山文档 Content Script，注入到 `*.kdocs.cn/l/*`，处理 `EXTRACT_DOC` 和 `DOWNLOAD_IMAGE` 消息
 - `entrypoints/general.content.ts` — 通用网页 Content Script，注入到所有页面（`<all_urls>`），仅处理 `EXTRACT_DOC`（提取页面标题、正文，返回 `DocContent` 中的 `markdown` 字段，而非 `blocks`）
-- `entrypoints/popup/App.vue` — 弹窗 UI，触发提取和保存；已移除“发布到社交媒体”按钮
-- `entrypoints/publisher-sidepanel/` — 内容发布工作台 React 入口；Chrome 以原生侧边栏打开，Firefox 降级为独立扩展页；从本地草稿恢复无 YAML 的完整原文 Markdown，并通过宿主适配器提供模型、提示词、生成和设置入口
-- `packages/publisher-playground/` — 内容发布工作台的独立 Vite Web 预览；使用示例稿件、本地存储和模拟 AI 适配器，可在普通浏览器中调试布局、编辑、分页、主题与导出，不读取插件设置或模型凭据
+- `entrypoints/popup/App.vue` — 弹窗 UI，触发提取和保存
 - `entrypoints/douyin-sidepanel/App.vue` — 抖音收藏批量导入侧边栏；当前页为抖音收藏页时点击插件图标直接打开，支持抓取、勾选、刷新和批量保存到 Get 笔记
-- `entrypoints/options/App.vue` — 设置页（subDir、imageMode、OSS 配置、Get笔记配置、模型配置、系统提示词管理；书签配置目前仅隐藏）
+- `entrypoints/options/App.vue` — 设置页（subDir、imageMode、OSS 配置、Get笔记配置、模型配置、系统提示词管理）
 - `entrypoints/options/components/ModelConfigSection.vue` — 多平台模型配置与测试指令界面；平台不设数量上限，同一平台只配置一次；测试区用按平台分组的单一模型下拉框，测试成功后记录最后使用模型
 - `entrypoints/options/components/SystemPromptSection.vue` — 系统提示词管理界面；显示本地提示词列表，编辑表单紧随对应条目，标题和内容必填，新增或编辑成功后立即持久化；不删除也不接入 AI 请求
-- `entrypoints/bookmarks/App.vue` — 书签管理页，含文件夹树、书签列表、AI 分类侧边栏；当前没有 UI 入口，但页面和数据均保留；中间书签栏支持 `原始 / 域名` 排序切换
-- `entrypoints/background.ts` — 后台 Service Worker；处理 `PROCESS_BOOKMARKS`、`GET_PROCESSING_STATUS`，并按当前 tab 动态切换 popup、抖音收藏侧边栏和内容发布工作台入口
+- `entrypoints/background.ts` — 后台 Service Worker；抖音收藏页启用抖音侧边栏，其余页面使用剪藏弹窗并禁用侧边栏
 
 ### 核心模块
 
@@ -154,10 +149,8 @@ Obsidian Vault（File System Access API）
 
 **存储层 `src/storage/`**
 
-- `settings.ts` — 用 `browser.storage.local` 持久化设置（`Settings` 接口，含多平台 AI 配置、最后使用模型、系统提示词列表、书签配置和 Get笔记配置）；读取时自动迁移旧版单模型配置
+- `settings.ts` — 用 `browser.storage.local` 持久化设置（`Settings` 接口，含多平台 AI 配置、最后使用模型、系统提示词列表和 Get笔记配置）；读取时自动迁移旧版单模型配置
 - `vault.ts` — 用 IndexedDB 持久化 `FileSystemDirectoryHandle`（Obsidian vault 路径）
-- `bookmarks.ts` — 书签数据持久化
-- `folderDescriptions.ts` — 书签文件夹描述持久化
 - `douyinImports.ts` — 抖音收藏批量导入断点缓存（连续成功段最后 URL、已导入 URL 集合）
 
 **文件系统 `src/filesystem/`**
@@ -182,28 +175,7 @@ Obsidian Vault（File System Access API）
 - `catalog.ts` — 基于 `@earendil-works/pi-ai` 提供浏览器可用的平台、模型与推理级别目录，并解析最后使用模型
 - `pi.ts` — `PiAIProvider` 实现，统一调用 Pi 支持的模型平台；推理默认关闭，也可按模型能力传入推理程度
 - `aliyun.ts` — `OpenAICompatibleProvider` 实现，支持自定义 OpenAI Chat API 兼容服务及可选推理程度；业务调用默认保留 JSON 模式，测试指令使用普通文本模式，并透传上游错误详情
-- `index.ts` — `createAIProvider(platform, modelId, reasoning)` 创建指定模型，`createDefaultAIProvider(settings)` 使用最后一次成功测试的模型
-- `src/publisher/ai.ts` — 内容发布 AI 适配逻辑；仅列出凭据完整的已配置模型、按能力限制推理级别，组合固定 Markdown 输出契约，并仅在非空内容生成成功后基于最新设置保存最近模型与推理
-- `src/publisher/adapters.ts` — 将浏览器设置、AI provider、草稿存储和设置页入口封装为可移植 React 包所需的宿主适配器
-- `src/publisher/download.ts` — 浏览器宿主下载适配器；接收 React 包生成的文件并通过临时链接保存到本地，随后释放对象 URL
-
-**内容发布 `src/publisher/` 与 `packages/content-publishing-workbench/`**
-
-- `src/publisher/source.ts` — 将结构化文档块或通用网页 Markdown 转为独立原文快照，元数据不写入正文
-- `src/publisher/drafts.ts` — 按快照 ID 保存发布草稿，并维护来源 URL 与活动标签页的草稿索引；读取时迁移旧草稿；全局保存三栏的宽度、显隐和活动区域，并修复无效的旧布局
-- `packages/content-publishing-workbench/` — 可移植的 React + shadcn 工作台包；界面复用设置页的系统字体、14px 控件字号、黑灰橙色令牌、2px 控件圆角和紧凑输入样式；顶部用单行中文标题与图标按钮组控制三栏，三栏标题不显示英文；模型、推理程度和提示词模板使用创作稿标题栏右侧的 Base UI 纯图标下拉菜单，选择模板会把内容写入同一个可编辑创作指令输入框，图标按钮触发 AI 生成；提供原文预览、覆盖确认、草稿保存状态及语义化 Markdown 编辑/预览，关闭时会立即补存最后一次编辑；三栏按容器宽度切换为宽屏三栏、中屏活动栏加相邻栏、窄屏单栏标签页，支持拖动、隐藏、恢复和重置；成品区提供基础、科技、简约、边框、手帐、柔和六种 1242×1656 小红书卡片样式、可选封面、重点标注、单一分页导航和虚拟化预览，封面与 PNG/ZIP 保存使用标题栏图标按钮，主题切换不会改变分页计划；超过 20 页只提示性能风险而不截断
-- `packages/content-publishing-workbench/src/markdown/` — 将卡片 Markdown 解析为与视觉样式无关的语义块；支持 GFM 表格、标题、段落、列表、引用、链接、代码、粗体、斜体、`==重点==`、分隔线和 `<!-- pagebreak -->`
-- `packages/content-publishing-workbench/src/layout/` — 纯异步分页计划与隐藏 DOM 测量台；按 1242×1656 卡片几何和与主题无关的排版 CSS 测量整张候选页块栈，优先块边界和标题保护，对超高文本及列表、引用、代码、表格做语义安全拆分，不限制总页数；编辑触发重排时会取消尚未完成的旧测量，排版失败会显示错误并允许重试
-- `packages/content-publishing-workbench/src/card/` — 六种卡片主题目录与最终卡片画布；内容页共用同一分页计划，可在其前附加默认关闭的封面而不修改内容页，页脚显示当前页码
-- `packages/content-publishing-workbench/src/export/` — 基于 `html-to-image` 将实际卡片 DOM 生成 PNG，并用 `fflate` 将页面逐张写入流式 ZIP，避免同时保留所有页面 Blob；导出前等待字体和图片、检查正文与封面的垂直溢出，并严格校验 1242×1656 尺寸、PNG MIME 与文件头，文件名按 UTF-8 字节安全截断且页码至少两位；中止信号贯穿资源等待、渲染、读取和打包，可移植包只生成文件，下载由宿主适配器执行
-
-**书签模块 `src/bookmark/`**
-
-- `classify.ts` — AI 自动分类书签
-- `duplicates.ts` — 书签去重
-- `export.ts` — 书签导出为 Markdown
-- `meta.ts` — 书签元数据提取
-- `sort.ts` — 书签列表排序（当前支持 `original` 原始顺序和 `domain` 按域名排序）
+- `index.ts` — `createAIProvider(platform, modelId, reasoning)` 创建指定模型；设置页使用它测试配置的模型
 
 **Vue Composables `src/composables/`**
 
@@ -211,22 +183,13 @@ Obsidian Vault（File System Access API）
 - `useDocContent.ts` — 向 content script 发消息获取文档
 - `useFileSave.ts` — 保存流程编排（下载图片 → 上传/本地存储 → 写 md 文件）
 - `useSettings.ts` — 设置读写
-- `useBookmarkTree.ts` — 书签树结构状态管理
-- `useBookmarkSearch.ts` — 书签搜索（普通搜索匹配标题/URL/摘要/标签；AI 搜索提交标题、域名、标签，不提交摘要，并在控制台记录点击、提交、返回时间及请求/响应数据）
-- `useBookmarkProcess.ts` — 书签 AI 处理流程
 - `useUpdateChecker.ts` — 检查扩展新版本（轮询 version.qiushui.me，3s 超时，静默失败）
 
-### 核心类型（`src/types.ts`、`src/publisher/types.ts`）
+### 核心类型（`src/types.ts`）
 
 - `Block` — 文档块：type、spans、level、language、checked、rows、src、alt
 - `DocContent extends DocMeta` — 包含 blocks 的完整文档
 - `MessageRequest / MessageResponse` — Content Script ↔ Popup 通信协议
-- `SourceSnapshot` — 内容发布工作台的只读原文 Markdown 与独立元数据快照
-- `PublisherLayout` — 内容发布工作台三栏的宽度、显隐和当前活动区域
-- `PublisherDraft` — 发布工作台草稿，保存原文快照、创作稿和卡片展示状态
-- `DraftInstruction / ModelSelection / DownloadArtifact / WorkbenchAdapters` — 创作指令、模型选择、导出文件和宿主能力的可移植工作台契约
-- `CardThemeId` — 六种小红书卡片样式标识
-- `SemanticBlock / InlineNode / PagePlan` — 卡片 Markdown 语义树、行内标记和可供预览/导出共用的分页计划
 
 ### 图片模式
 

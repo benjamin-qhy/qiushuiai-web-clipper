@@ -168,10 +168,6 @@ function openSettings() {
   browser.tabs.create({ url: '/options.html' })
 }
 
-function openBookmarks() {
-  browser.tabs.create({ url: browser.runtime.getURL('/bookmarks.html') })
-}
-
 async function handleSubDirBlur() {
   const settings = await getSettings()
   await saveSettings({ ...settings, subDir: subDir.value })
@@ -203,7 +199,6 @@ async function handleSubDirBlur() {
         <span class="header-brand">{{ sourceLabel }}</span>
         <span class="header-version">v{{ version }}</span>
         <button class="btn-settings" @click="openSettings">设置</button>
-        <button class="btn-bookmarks feature-hidden" @click="openBookmarks">标签管理</button>
       </div>
 
       <div class="doc-meta">
@@ -366,19 +361,6 @@ async function handleSubDirBlur() {
   flex-shrink: 0;
 }
 .btn-settings:hover { opacity: 0.8; }
-.btn-bookmarks {
-  font-size: 14px;
-  background: var(--color-accent);
-  color: #fff;
-  border: none;
-  padding: 4px 10px;
-  border-radius: 2px;
-  cursor: pointer;
-  letter-spacing: 0.5px;
-  flex-shrink: 0;
-}
-.btn-bookmarks:hover { opacity: 0.85; }
-.feature-hidden { display: none; }
 
 /* Doc title area */
 .doc-meta { padding: 10px 0 0; flex-shrink: 0; }

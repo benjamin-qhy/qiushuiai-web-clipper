@@ -1,8 +1,8 @@
-import type { AIPlatformConfig, Settings } from '../storage/settings'
+import type { AIPlatformConfig } from '../storage/settings'
 import type { AIProvider } from './types'
 import { OpenAICompatibleProvider } from './aliyun'
 import { PiAIProvider } from './pi'
-import { getAvailableModelSelection, type AIReasoningLevel } from './catalog'
+import { type AIReasoningLevel } from './catalog'
 
 export function createAIProvider(
   platform: AIPlatformConfig,
@@ -17,10 +17,4 @@ export function createAIProvider(
     }, reasoning)
   }
   return new PiAIProvider(platform, modelId, reasoning)
-}
-
-export function createDefaultAIProvider(settings: Settings): AIProvider {
-  const selection = getAvailableModelSelection(settings)
-  if (!selection) throw new Error('尚未配置可用的 AI 模型')
-  return createAIProvider(selection.platform, selection.modelId)
 }
