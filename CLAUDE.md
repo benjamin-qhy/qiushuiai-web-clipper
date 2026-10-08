@@ -75,6 +75,8 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 
 ## 项目简介
 
+项目名称为 **海奇AI**，英文 **HaiqiAI**。仓库名与对外发布名称计划后续统一修改；当前目录、包名和扩展显示名称暂保留现状。
+
 网页剪藏浏览器扩展（Chrome/Firefox），支持将以下来源一键提取为 Obsidian Markdown 笔记：
 
 - **飞书文档**（docx/wiki）
@@ -82,6 +84,22 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - **任意通用网页**
 
 使用 WXT + Vue 3 + TypeScript 构建。保留多平台模型配置与系统提示词管理；内容发布工作台、图片卡片、独立预览及书签管理已移除，不清除浏览器收藏夹或历史存储数据。
+
+## MultiPost 发布扩展子项目
+
+`MultiPost-Extension/` 是从本机 MultiPost 源码复制的独立发布扩展，使用 Plasmo + React，保留自己的依赖与构建配置。开发该子项目时先读其 `CLAUDE.md`；其源码不参与根项目的类型检查与扩展打包。
+
+- 当前仅引入源码，尚未接入自建 REST API，也未完成可靠的发布结果确认。
+- 发布系统规划已确认，实施顺序与验收见[开发验收决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/25)。用户明确要求开始前确认：实际开发、部署或真实发布须先获得对应范围的明确授权；采用规划不代表授权开工。已获授权的范围不重复询问。
+- 内容字段与平台映射见[发布内容决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/26)：Skill 提交确认后的各平台内容，扩展不自动改写、截断或删减；超限和缺项须明确报错。MultiPost 既有静默截断行为仍待整改，不能视为已符合此规则。
+- 任务接口、结果状态及恢复规则见[发布接口决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/24)：需人工处理、失败和结果未知必须说明原因、阶段与处理建议；提交后的未知结果仅核对、不自动重发。当前为规划契约，尚未实现。
+- 已确认职责与素材/授权边界见[整合架构决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/23)：Skill 提交并查询，API 保存素材与任务，MultiPost 执行并回报；素材先上传所选 API，各端使用独立可撤销密钥，平台 Cookie 留在浏览器。尚未实现。
+- 首版仅覆盖已定 13 平台中 MultiPost 已有的发布类型，尚无适配的类型暂不新增；完整范围见[首版发布类型决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/22)。已有脚本仍需补齐流程和结果确认，不能视为已验收。
+- 发布目标规则已确定：Skill 指定平台、账号和电脑，浏览器与用户配置允许省略并使用预设默认值，最终定位独立扩展安装；细则见规划地图中的「发布授权、账号与运行环境边界」，术语见 `CONTEXT.md`。这些规则尚未实现。
+- 已确认整合方向：剪藏保留现有 Vue 架构；发布保留 MultiPost 的 React 页面、平台脚本和模块结构并继续开发。计划由 WXT 统一构建一个扩展，统一配置与后台入口，业务模块、消息及设置分开组织；Plasmo 专属部分按需适配。该方案尚未实现。
+- 已确定目标：复用 MultiPost 能力并整合进当前剪藏扩展，最终为一个扩展；当前子目录独立构建只是引入现状。规划与决策见 [多平台发布规划地图](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/17)，涉及发布范围、接口或验收时先读取该地图及相关子议题。
+- 上游为 `https://github.com/leaperone/MultiPost-Extension`，引入提交为 `9e9138831b7a3c782d9010f7dfd1ae6d474ebe11`；保留上游 LICENSE 和 README，不复制嵌套 Git 仓库。
+- 根目录命令针对剪藏扩展；MultiPost 的安装与构建须在其子目录执行。
 
 ## 常用命令
 
