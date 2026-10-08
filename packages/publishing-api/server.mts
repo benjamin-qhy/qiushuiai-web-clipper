@@ -1,3 +1,10 @@
+import type { State, Computer, Credential, Pairing, Executor, Account } from './model.mts'
+import { resolveTarget } from './targets.mts'
+import { taskRoute } from './tasks.mts'
+import { ApiError, fail, hash, text, fields, canonical } from './protocol.mts'
+import { assetRoute, receiveAsset, type Asset } from './assets.mts'
+import { createReadStream } from 'node:fs'
+import { unlinkSync, renameSync } from 'node:fs'
 import { capabilities } from './capabilities.mts'
 import { createServer, type IncomingMessage } from 'node:http'
 import { DatabaseSync } from 'node:sqlite'
@@ -6,28 +13,7 @@ import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-interface Computer { id: string; name: string; version: number; defaultBrowserId?: string; defaultProfiles: Record<string, string> }
-interface Executor { id: string; computerId: string; browserId: string; browserName: string; profileId: string; profileName: string; installationId: string; extensionVersion: string; lastHeartbeat: string | null; revoked: boolean }
-interface Credential { id: string; hash: string; role: 'skill' | 'executor'; executorId?: string; name: string; revoked: boolean }
-interface Pairing { hash: string; expiresAt: string; computerId: string; browserId: string; browserName: string; profileId: string; profileName: string; used: boolean }
-interface Account { id: string; executorId: string; platform: string; platformAccountId: string; displayName: string; observedAt: string | null; bindingState: 'unobserved' | 'matched' | 'mismatch' | 'logged_out' }
-interface State { instanceId: string; computers: Computer[]; executors: Executor[]; keys: Credential[]; pairings: Pairing[]; accounts: Account[] }
-interface Options { directory: string; adminKey: string; port?: number; host?: string; now?: () => number }
-class ApiError extends Error {
-  status: number
-  code: string
-  constructor(status: number, code: string, message: string) { super(message); this.status = status; this.code = code }
-}
-function fail(status: number, code: string, message: string): never { throw new ApiError(status, code, message) }
-function hash(value: string) { return createHash('sha256').update(value).digest('hex') }
-function text(body: Record<string, unknown>, name: string, max = 200): string {
-  const value = body[name]
-  if (typeof value !== 'string' || !value.trim() || value.length > max) fail(400, 'INVALID_FIELD', `${name} 必须是非空文本（最多 ${max} 字符）`)
-  return value
-}
-function fields(body: Record<string, unknown>, allowed: string[]) {
-  if (Object.keys(body).some(key => !allowed.includes(key))) fail(400, 'UNSUPPORTED_FIELD', '请求包含不支持的字段；请勿发送 Cookie 或平台令牌')
-}
+interface Options { directory: string; adminKey: string; port?: number; host?: string; now?: () => number; maxAssetBytes?: number }
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   let size = 0
   const chunks: Buffer[] = []
@@ -49,11 +35,6 @@ function makeKey(state: State, role: Credential['role'], name: string, executorI
   return { keyId: credential.id, key }
 }
 
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
-  if (value && typeof value === 'object') return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(',')}}`
-  return JSON.stringify(value)
-}
 function seal(value: unknown, secret: Buffer) {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', secret, iv)
@@ -67,7 +48,8 @@ function unseal(value: string, secret: Buffer): { status: number; result: { keyI
   return JSON.parse(Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString())
 }
 
-export async function startServer({ directory, adminKey, port = 43129, host = '127.0.0.1', now = Date.now }: Options) {
+export async function startServer({ directory, adminKey, port = 43129, host = '127.0.0.1', now = Date.now, maxAssetBytes = 512 * 1024 * 1024 }: Options) {
+  if (!Number.isSafeInteger(maxAssetBytes) || maxAssetBytes <= 0) throw new Error('素材上传上限必须为正整数')
   if (adminKey.length < 32) throw new Error('HAIQIAI_ADMIN_KEY 至少需要 32 字符')
   mkdirSync(directory, { recursive: true, mode: 0o700 })
   const secretPath = join(directory, 'receipt.key')
@@ -84,12 +66,23 @@ export async function startServer({ directory, adminKey, port = 43129, host = '1
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
     res.setHeader('Cache-Control', 'no-store')
     let transaction = false
+    let upload: Awaited<ReturnType<typeof receiveAsset>> | undefined
     try {
       const url = new URL(req.url || '/', 'http://localhost')
       const path = url.pathname
-      const body = req.method === 'GET' ? {} : await readBody(req)
+      if (req.method === 'PUT' && /^\/v1\/assets\/[^/]+\/content$/.test(path)) {
+        const before: State = JSON.parse(db.prepare('SELECT value FROM state WHERE id=1').get()!.value as string)
+        const bearer = req.headers.authorization?.replace(/^Bearer /, '') || ''
+        if (hash(bearer) !== hash(adminKey) && !before.keys.some(key => key.role === 'skill' && !key.revoked && key.hash === hash(bearer))) fail(403, 'FORBIDDEN', '仅 Skill 或管理身份可以上传素材')
+        if (typeof req.headers['idempotency-key'] !== 'string' || !req.headers['idempotency-key'] || req.headers['idempotency-key'].length > 200) fail(400, 'IDEMPOTENCY_KEY_REQUIRED', '上传需要 Idempotency-Key')
+        const asset = before.assets?.find(asset => asset.id === path.split('/')[3])
+        if (!asset) fail(404, 'ASSET_NOT_FOUND', '素材不存在')
+        upload = await receiveAsset(req, directory, asset, maxAssetBytes)
+      }
+      const body = req.method === 'GET' || upload ? {} : await readBody(req)
       db.exec('BEGIN IMMEDIATE'); transaction = true
       const state: State = JSON.parse(db.prepare('SELECT value FROM state WHERE id=1').get()!.value as string)
+      state.assets ||= []; state.tasks ||= []; state.attempts ||= []
       const bearer = req.headers.authorization?.replace(/^Bearer /, '') || ''
       const isAdmin = timingSafeEqual(Buffer.from(hash(bearer)), Buffer.from(hash(adminKey)))
       const credential = state.keys.find(key => !key.revoked && key.hash === hash(bearer))
@@ -99,7 +92,7 @@ export async function startServer({ directory, adminKey, port = 43129, host = '1
       if (mutation && (typeof idempotencyKey !== 'string' || !idempotencyKey || idempotencyKey.length > 200)) fail(400, 'IDEMPOTENCY_KEY_REQUIRED', '变更请求需要 Idempotency-Key')
       const identity = path === '/v1/executors/pair' ? `pair:${hash(text(body, 'pairingCode'))}` : isAdmin ? 'admin' : credential!.id
       const scope = JSON.stringify([identity, req.method, path, idempotencyKey])
-      const digest = hash(canonical(body))
+      const digest = hash(canonical(upload ? { sha256: upload.sha256, sizeBytes: upload.sizeBytes } : body))
       const receipt = mutation ? db.prepare('SELECT digest, response FROM receipts WHERE scope=?').get(scope) : undefined
       if (receipt) {
         if (receipt.digest !== digest) fail(409, 'IDEMPOTENCY_CONFLICT', '相同幂等键对应不同请求内容')
@@ -118,7 +111,25 @@ export async function startServer({ directory, adminKey, port = 43129, host = '1
       const admin = () => { if (!isAdmin) fail(403, 'FORBIDDEN', '需要管理身份') }
       let result: unknown
       let status = 200
-      if (req.method === 'POST' && path === '/v1/computers') {
+      const assets = assetRoute({ method: req.method, path, body, assets: state.assets, manager: isAdmin || credential?.role === 'skill', maxAssetBytes, canRead: id => state.tasks.some(task => task.targets.some(target => target.executorId === credential?.executorId && target.assetIds.includes(id))) })
+      const taskResult = taskRoute({ method: req.method, url, body, state, credential, isAdmin, now: now() })
+      if (taskResult) { result = taskResult.result; status = taskResult.status }
+      else if (assets) {
+        result = assets.result; status = assets.status
+        if (upload) {
+          const asset = state.assets.find(asset => asset.id === path.split('/')[3])!
+          if (!asset.ready) { renameSync(upload.path, join(directory, 'assets', asset.id)); asset.ready = true }
+          result = { assetId: asset.id, ready: true }
+        }
+        if (assets.download) {
+          db.exec('COMMIT'); transaction = false
+          res.setHeader('Content-Type', 'application/octet-stream')
+          res.setHeader('X-Content-Type-Options', 'nosniff')
+          res.setHeader('Content-Length', assets.download.sizeBytes)
+          const stream = createReadStream(join(directory, 'assets', assets.download.id))
+          stream.on('error', () => res.destroy()); res.on('close', () => stream.destroy()); stream.pipe(res); return
+        }
+      } else if (req.method === 'POST' && path === '/v1/computers') {
         admin(); fields(body, ['name'])
         const computer: Computer = { id: randomUUID(), name: text(body, 'name'), version: 0, defaultProfiles: {} }
         state.computers.push(computer); result = computer; status = 201
@@ -204,18 +215,8 @@ export async function startServer({ directory, adminKey, port = 43129, host = '1
       } else if (req.method === 'POST' && path === '/v1/targets/resolve') {
         fields(body, ['computerId', 'browserId', 'profileId', 'accountId', 'platform'])
         if (!isAdmin && credential?.role !== 'skill') fail(403, 'FORBIDDEN', '需要 Skill 或管理身份')
-        const computer = state.computers.find(computer => computer.id === text(body, 'computerId'))
-        if (!computer) fail(422, 'COMPUTER_NOT_FOUND', '电脑不存在')
-        const browserId = body.browserId === undefined ? computer.defaultBrowserId : text(body, 'browserId')
-        if (!browserId) fail(422, 'DEFAULT_NOT_SET', '电脑尚未设置默认浏览器')
-        const profileId = body.profileId === undefined ? computer.defaultProfiles[browserId] : text(body, 'profileId')
-        if (!profileId) fail(422, 'DEFAULT_NOT_SET', '浏览器尚未设置默认用户配置')
-        const matches = state.executors.filter(executor => !executor.revoked && executor.computerId === computer.id && executor.browserId === browserId && executor.profileId === profileId)
-        if (matches.length !== 1) fail(422, 'EXECUTOR_NOT_FOUND', '目标安装不存在、已撤销或有歧义')
-        const executor = matches[0]
-        const account = state.accounts.find(account => account.id === text(body, 'accountId') && account.platform === text(body, 'platform') && account.executorId === executor.id)
-        if (!account) fail(422, 'ACCOUNT_MISMATCH', '账号未登记到指定平台和安装实例')
-        result = { executorId: executor.id, computerId: computer.id, browserId, profileId, accountId: account.id, platform: account.platform, online: online(executor), preview: true }
+        const resolved = resolveTarget(state, body)
+        result = { ...resolved, online: online(getExecutor(resolved.executorId)), preview: true }
       } else if (req.method === 'GET' && path === '/v1/executors') {
         result = { instanceId: state.instanceId, computers: state.computers.filter(computer => isAdmin || credential?.role === 'skill' || state.executors.some(executor => executor.id === credential?.executorId && executor.computerId === computer.id)), executors: state.executors.filter(executor => isAdmin || credential?.role === 'skill' || credential?.executorId === executor.id).map(executor => ({ ...executor, computerName: state.computers.find(computer => computer.id === executor.computerId)?.name, online: online(executor) })) }
       } else fail(404, 'NOT_FOUND', '接口不存在')
@@ -227,7 +228,9 @@ export async function startServer({ directory, adminKey, port = 43129, host = '1
       if (transaction) db.exec('ROLLBACK')
       const known = error instanceof ApiError
       res.writeHead(known ? error.status : 500)
-      res.end(JSON.stringify({ requestId, error: { code: known ? error.code : 'INTERNAL_ERROR', message: known ? error.message : '服务内部错误', retryable: !known, nextAction: known ? '请核对请求或联系管理端' : '稍后重试' } }))
+      res.end(JSON.stringify({ requestId, error: { code: known ? error.code : 'INTERNAL_ERROR', message: known ? error.message : '服务内部错误', ...(known && error.fieldErrors ? { fieldErrors: error.fieldErrors } : {}), retryable: !known, nextAction: known ? '请核对请求或联系管理端' : '稍后重试' } }))
+    } finally {
+      if (upload) { try { unlinkSync(upload.path) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') console.error('无法删除上传临时文件') } }
     }
   })
   await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(port, host, resolve) })
@@ -236,7 +239,7 @@ export async function startServer({ directory, adminKey, port = 43129, host = '1
   return { url: `http://${host}:${address.port}`, close: () => new Promise<void>((resolve, reject) => server.close(error => { db.close(); error ? reject(error) : resolve() })) }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const server = await startServer({ directory: process.env.HAIQIAI_DATA_DIR || '.haiqiai-publishing', adminKey: process.env.HAIQIAI_ADMIN_KEY || readFileSync(join(process.env.HAIQIAI_DATA_DIR || '.haiqiai-publishing', 'admin.key'), 'utf8').trim(), port: Number(process.env.PORT || 43129), host: process.env.HOST || '127.0.0.1' })
+  const server = await startServer({ directory: process.env.HAIQIAI_DATA_DIR || '.haiqiai-publishing', adminKey: process.env.HAIQIAI_ADMIN_KEY || readFileSync(join(process.env.HAIQIAI_DATA_DIR || '.haiqiai-publishing', 'admin.key'), 'utf8').trim(), port: Number(process.env.PORT || 43129), host: process.env.HOST || '127.0.0.1', maxAssetBytes: Number(process.env.HAIQIAI_MAX_ASSET_BYTES || 512 * 1024 * 1024) })
   console.log(`HaiqiAI publishing API: ${server.url}`)
   for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => { void server.close() })
 }

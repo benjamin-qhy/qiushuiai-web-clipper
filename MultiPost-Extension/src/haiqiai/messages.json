@@ -21,7 +21,7 @@
     "message": "连接失败，请稍后重试"
   },
   "hqConnectionScope": {
-    "message": "当前支持连接与账号查询，发布任务尚未接入。"
+    "message": "当前只执行模拟任务。模拟草稿不是平台草稿，也不代表已发布。"
   },
   "hqApiUrl": {
     "message": "API 地址"
@@ -109,5 +109,74 @@
   },
   "hqComputer": {
     "message": "执行电脑"
+  },
+  "hqRunSimulation": {
+    "message": "立即检查模拟任务"
+  },
+  "hqTasks": {
+    "message": "发布任务"
+  },
+  "hqNoTasks": {
+    "message": "当前没有指定给此浏览器的任务。"
+  },
+  "hqSimulationTask": {
+    "message": "模拟任务 · 不对外发布"
+  },
+  "hqQueued": {
+    "message": "等待指定浏览器"
+  },
+  "hqRunning": {
+    "message": "模拟执行中"
+  },
+  "hqSimulationSaved": {
+    "message": "模拟草稿已保存（未发布）"
+  },
+  "hqFailed": {
+    "message": "失败"
+  },
+  "hqNeedsAttention": {
+    "message": "需人工处理"
+  },
+  "hqContentSnapshot": {
+    "message": "查看确认后的内容"
+  },
+  "hqMoreTasks": {
+    "message": "加载更多任务"
+  },
+  "hqSimulationPending": {
+    "message": "模拟执行或回传中断，已保留本地记录；请检查网络和任务状态，不要重复提交。"
+  },
+  "hqSimulationAssetAction": {
+    "message": "检查素材和服务连接；本次没有执行真实发布"
+  },
+  "hqSimulationEvidence": {
+    "message": "已完整核对素材并保存模拟草稿；未打开真实平台，未执行真实发布"
+  },
+  "hqLeaseRenewalFailed": {
+    "message": "任务执行期限续期失败；尚未确认服务端是否接受续期"
+  },
+  "hqLeaseRenewalAction": {
+    "message": "检查服务连接与任务执行期限，核对任务状态后处理；不要重复提交"
+  },
+  "hqAssetNotReady": {
+    "message": "素材尚未完成上传"
+  },
+  "hqAssetHttpError": {
+    "message": "素材下载被服务端拒绝，HTTP 状态码"
+  },
+  "hqAssetEmptyResponse": {
+    "message": "素材下载响应缺少正文"
+  },
+  "hqAssetSizeMismatch": {
+    "message": "素材实际大小与声明大小不一致"
+  },
+  "hqAssetDigestMismatch": {
+    "message": "素材校验摘要与上传记录不一致"
+  },
+  "hqAssetTimeout": {
+    "message": "素材下载超时或被中止"
+  },
+  "hqAssetUnknown": {
+    "message": "素材读取中断，具体原因尚未确认"
   }
 }

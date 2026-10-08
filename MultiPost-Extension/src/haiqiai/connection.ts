@@ -1,8 +1,6 @@
-import messages from "./messages.json";
+import { runSimulation, type SimulationProgress, type TaskView } from "./simulation";
+import { message as localize } from "./i18n";
 
-function localize(key: keyof typeof messages): string {
-  return globalThis.chrome?.i18n?.getMessage(key) || messages[key].message;
-}
 // The credential stays in the extension background; messages only return a public view.
 const STORAGE_KEY = "haiqiaiPublishingConnection";
 const ALARM = "haiqiai-publishing-heartbeat";
@@ -13,12 +11,13 @@ export interface ExecutorView {
 export interface AccountView { id: string; platform: string; displayName: string; bindingState: string }
 export interface ConnectionView {
   connected: boolean; status: "disconnected" | "connected" | "offline" | "revoked";
-  apiUrl?: string; executor?: ExecutorView; accounts?: AccountView[]; error?: string;
+  apiUrl?: string; executor?: ExecutorView; accounts?: AccountView[]; tasks?: TaskView[]; nextCursor?: string | null; error?: string;
 }
 interface SavedState {
   installationId: string;
   pending?: { apiUrl: string; code: string; requestId: string; extensionVersion: string };
   connection?: { apiUrl: string; executorId: string; key: string; instanceId: string };
+  simulation?: SimulationProgress;
   view: ConnectionView;
 }
 class ConnectionError extends Error {
@@ -66,14 +65,23 @@ export function registerPublishingConnection() {
       if (discovery.instanceId !== instanceId) throw new Error(localize("hqInstanceChanged"));
       await request(apiUrl, `/executors/${executorId}/heartbeat`, key, { extensionVersion: chrome.runtime.getManifest().version, accountObservations: [] });
       const updated = await request(apiUrl, "/executors", key);
+      const tasks = await request(apiUrl, "/tasks?limit=100", key);
       const accounts = await request(apiUrl, `/accounts?executorId=${encodeURIComponent(executorId)}`, key);
-      state.view = { connected: true, status: "connected", apiUrl, executor: updated.executors.find((executor: ExecutorView) => executor.id === executorId), accounts: accounts.accounts };
+      state.view = { connected: true, status: "connected", apiUrl, executor: updated.executors.find((executor: ExecutorView) => executor.id === executorId), accounts: accounts.accounts, tasks: tasks.tasks, nextCursor: tasks.nextCursor };
     } catch (error) {
       const revoked = error instanceof ConnectionError && error.status === 401;
       state.view = { ...state.view, connected: true, status: revoked ? "revoked" : "offline", error: revoked ? error.message : localize("hqNetworkError") };
       if (state.view.executor) state.view.executor.online = false;
     }
     await save(state); return state.view;
+  };
+  const simulate = async (state: SavedState) => {
+    if (!state.connection || state.view.status !== "connected") return state.view;
+    const { apiUrl, key, executorId } = state.connection;
+    state.simulation ||= {};
+    await runSimulation(state.simulation, { apiUrl, key, executorId,
+      request: (path, body, id) => request(apiUrl, path, key, body, id), save: () => save(state) });
+    return refresh(state);
   };
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (message?.type !== "HAIQIAI_PUBLISHING_CONNECTION") return;
@@ -93,17 +101,27 @@ export function registerPublishingConnection() {
         const pending = state.pending;
         const result = await request(apiUrl, "/executors/pair", undefined, { pairingCode: pending.code, installationId: state.installationId, extensionVersion: pending.extensionVersion }, pending.requestId);
         state.connection = { apiUrl, executorId: result.executorId, key: result.key, instanceId: result.instanceId };
-        delete state.pending;
+        delete state.pending; delete state.simulation;
         state.view = { connected: true, status: "connected", apiUrl, executor: result.executor, accounts: [] };
         await save(state);
         return refresh(state);
       }
+      if (message.action === "nextTasks" && state.connection && state.view.nextCursor) {
+        const result = await request(state.connection.apiUrl, `/tasks?limit=100&cursor=${encodeURIComponent(state.view.nextCursor)}`, state.connection.key);
+        state.view.tasks = [...(state.view.tasks || []), ...result.tasks]; state.view.nextCursor = result.nextCursor;
+        await save(state); return state.view;
+      }
+      if (message.action === "simulate") return simulate(state);
       if (message.action === "status" || message.action === "refresh") return refresh(state);
       throw new Error(localize("hqUnsupportedAction"));
     }).then(data => respond({ data }), error => respond({ error: error instanceof ConnectionError ? error.message : error instanceof TypeError ? localize("hqInvalidEndpoint") : error.message }));
     return true;
   });
-  const beat = () => serialized(async () => refresh(await load())).catch(() => undefined);
+  const beat = () => serialized(async () => {
+    const state = await load(); await refresh(state);
+    try { return await simulate(state); }
+    catch { state.view.error = localize("hqSimulationPending"); await save(state); }
+  }).catch(() => undefined);
   chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === ALARM) return beat(); });
   const schedule = () => { void chrome.alarms.create(ALARM, { periodInMinutes: 0.5 }); void beat(); };
   chrome.runtime.onStartup.addListener(schedule);

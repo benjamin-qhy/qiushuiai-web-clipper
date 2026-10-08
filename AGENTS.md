@@ -90,17 +90,18 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 `MultiPost-Extension/` 是从本机 MultiPost 源码复制的独立发布扩展，使用 Plasmo + React，保留自己的依赖与构建配置。开发该子项目时先读其 `CLAUDE.md`；根项目仅类型检查和打包显式接入的发布模块；其余上游源码保留独立构建。
 
 - 发布连接后台 `MultiPost-Extension/src/haiqiai/connection.ts` 通过独立 `HAIQIAI_PUBLISHING_CONNECTION` 消息处理配对/查询；仅信任发布页调用，密钥保存在限制为可信扩展上下文的 local 存储，不回传页面消息。30秒 alarm 心跳，离线/撤销明确显示，Firefox不启动该后台。
-- `packages/publishing-api/` 为独立 Node 24 + SQLite 发布 API；当前实现管理配对、分权密钥、发现、账号登记/观测、心跳、默认配置及目标预检，尚未实现任务与素材。`server.mts` 提供服务，`admin.mts` 为本机/远程管理入口，`capabilities.mts` 将首版范围标为未验证。运行数据和凭据默认存 `.haiqiai-publishing/`（不入库）。
+- `skills/haiqiai-publishing/SKILL.md` 是随仓库交付的 Skill 调用入口，说明确认、上传、幂等提交和模拟结果查询；使用专用 Skill 凭据，不自动安装到全局技能目录。
+- `packages/publishing-api/` 为独立 Node 24 + SQLite 发布 API；当前实现管理配对、分权密钥、发现、账号登记/观测、心跳、默认配置及目标预检，已新增素材流式上传校验及模拟任务提交/领取/事件查询；真实执行与完整恢复尚未接入。`server.mts` 提供服务，`admin.mts` 为本机/远程管理及 Skill 请求入口，`upload.mts` 流式上传并保存可重试回执，`capabilities.mts` 将首版范围标为未验证；`assets.mts` 管理完整性校验，`tasks.mts` 管理模拟任务快照/租约/证据，`targets.mts` 共用目标解析，`model.mts`/`protocol.mts` 定义持久化类型和协议辅助。运行数据和凭据默认存 `.haiqiai-publishing/`（不入库）。
 - 正在实施规格与19项开发任务，见[开发规格](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/27)。开发及测试范围已获用户授权；部署和真实发布仍须对应授权。
-- `entrypoints/publish/` 是WXT托管的React发布入口；`MultiPost-Extension/src/haiqiai/` 使用原MultiPost的React/HeroUI体系承载本地界面及独立样式/文案。已接入配对、连接状态与账号列表，任务和真实发布尚未接入；上游官方服务器入口不载入整合包。
+- `entrypoints/publish/` 是WXT托管的React发布入口；`MultiPost-Extension/src/haiqiai/` 使用原MultiPost的React/HeroUI体系承载本地界面及独立样式/文案。已接入配对、连接状态、账号及模拟任务列表；`simulation.ts` 仅流式核对素材并回传模拟草稿，`i18n.ts` 共用本地化文案；真实发布尚未接入；上游官方服务器入口不载入整合包。
 - Chrome/Edge弹窗与设置页可进入发布工作台；Firefox保持剪藏，不构建发布页。仅显式引入的发布模块参与根构建，未迁入的上游源码不自动加载。
 - 发布系统规划已确认，实施顺序与验收见[开发验收决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/25)。用户明确要求开始前确认：实际开发、部署或真实发布须先获得对应范围的明确授权；采用规划不代表授权开工。已获授权的范围不重复询问。
 - 内容字段与平台映射见[发布内容决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/26)：Skill 提交确认后的各平台内容，扩展不自动改写、截断或删减；超限和缺项须明确报错。MultiPost 既有静默截断行为仍待整改，不能视为已符合此规则。
 - 任务接口、结果状态及恢复规则见[发布接口决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/24)：需人工处理、失败和结果未知必须说明原因、阶段与处理建议；提交后的未知结果仅核对、不自动重发。连接与发现部分已实现；任务状态与恢复仍为待实现契约。
-- 已确认职责与素材/授权边界见[整合架构决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/23)：Skill 提交并查询，API 保存素材与任务，MultiPost 执行并回报；素材先上传所选 API，各端使用独立可撤销密钥，平台 Cookie 留在浏览器。连接授权已实现；任务与素材传递待实现。
+- 已确认职责与素材/授权边界见[整合架构决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/23)：Skill 提交并查询，API 保存素材与任务，MultiPost 执行并回报；素材先上传所选 API，各端使用独立可撤销密钥，平台 Cookie 留在浏览器。连接授权已实现；素材与模拟任务传递已实现；真实发布待实现。
 - 首版仅覆盖已定 13 平台中 MultiPost 已有的发布类型，尚无适配的类型暂不新增；完整范围见[首版发布类型决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/22)。已有脚本仍需补齐流程和结果确认，不能视为已验收。
-- 发布目标规则已确定：Skill 指定平台、账号和电脑，浏览器与用户配置允许省略并使用预设默认值，最终定位独立扩展安装；细则见规划地图中的「发布授权、账号与运行环境边界」，术语见 `CONTEXT.md`。默认解析预检已实现；任务入队固定安装与执行前账号复核待实现。
-- 已确认整合方向：剪藏保留现有 Vue 架构；发布保留 MultiPost 的 React 页面、平台脚本和模块结构并继续开发。计划由 WXT 统一构建一个扩展，统一配置与后台入口，业务模块、消息及设置分开组织；Plasmo 专属部分按需适配。双框架入口已接入，连接后台与发现API已接入，任务执行尚未实现。
+- 发布目标规则已确定：Skill 指定平台、账号和电脑，浏览器与用户配置允许省略并使用预设默认值，最终定位独立扩展安装；细则见规划地图中的「发布授权、账号与运行环境边界」，术语见 `CONTEXT.md`。默认解析预检已实现；模拟任务入队已固定安装；真实执行前账号复核待实现。
+- 已确认整合方向：剪藏保留现有 Vue 架构；发布保留 MultiPost 的 React 页面、平台脚本和模块结构并继续开发。计划由 WXT 统一构建一个扩展，统一配置与后台入口，业务模块、消息及设置分开组织；Plasmo 专属部分按需适配。双框架入口已接入，连接后台与发现API已接入，模拟任务执行已接入，真实执行和完整故障恢复尚未实现。
 - 已确定目标：复用 MultiPost 能力并整合进当前剪藏扩展，最终为一个扩展；当前子目录独立构建只是引入现状。规划与决策见 [多平台发布规划地图](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/17)，涉及发布范围、接口或验收时先读取该地图及相关子议题。
 - 上游为 `https://github.com/leaperone/MultiPost-Extension`，引入提交为 `9e9138831b7a3c782d9010f7dfd1ae6d474ebe11`；保留上游 LICENSE 和 README，不复制嵌套 Git 仓库。
 - 根目录命令针对剪藏扩展；MultiPost 的安装与构建须在其子目录执行。

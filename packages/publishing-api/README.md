@@ -1,6 +1,6 @@
-# HaiqiAI 发布 API：配对与目标发现
+# HaiqiAI 发布 API：配对、素材与模拟任务
 
-当前阶段对应 #29。支持 Node.js 24.13+、本机或服务器运行，使用 Node 内置 HTTP 与 SQLite，无独立服务端依赖。任务、素材、平台账号自动读取和实际发布仍未接入。单个 API 实例服务一个使用者；管理、Skill、各扩展分别使用不同凭据。不自动跨实例同步。
+当前阶段覆盖 #29、#30。支持 Node.js 24.13+、本机或服务器运行，使用 Node 内置 HTTP 与 SQLite，HTML 校验使用根目录依赖 parse5（先运行 pnpm install）。素材与模拟任务已接入，平台账号自动读取和实际发布仍未接入。单个 API 实例服务一个使用者；管理、Skill、各扩展分别使用不同凭据。不自动跨实例同步。
 
 ## 启动与管理
 
@@ -54,7 +54,7 @@ pnpm publishing:admin POST /v1/keys/KEY_ID/revoke - revoke-result.json
 | POST /executors/{id}/heartbeat | 所属安装 | `{extensionVersion,accountObservations:[{accountId,platformAccountId:string或null}]}`；服务端记录时间 |
 | POST /targets/resolve | Skill/管理 | `{computerId,platform,accountId,browserId?,profileId?}` 预检解析，不创建任务 |
 
-默认解析：省略浏览器采用电脑默认；省略配置采用所选浏览器默认；只指定配置则在默认浏览器内找。缺默认、不存在、撤销、有歧义、账号不属于指定安装均明确拒绝。离线目标仍可预检，不自动改派。`targets/resolve` 的结果是预检快照，后续任务创建必须在其事务内重新解析并固定安装；此阶段没有提交任务接口。
+默认解析：省略浏览器采用电脑默认；省略配置采用所选浏览器默认；只指定配置则在默认浏览器内找。缺默认、不存在、撤销、有歧义、账号不属于指定安装均明确拒绝。离线目标仍可预检，不自动改派。`targets/resolve` 的结果是预检快照，后续任务创建必须在其事务内重新解析并固定安装；任务创建复用同一解析规则，在同一事务内固定目标，后续默认修改不会改派。
 
 心跳每30秒，服务端90秒未收到显示离线。离线不等于发布失败。当前扩展心跳不读取平台账号，因此观测数组为空；管理端登记账号会显示“尚未核对实际登录账号”。后续平台适配接入账号观测后，状态为 matched/mismatch/logged_out，执行前仍需重新核对。
 
@@ -71,3 +71,51 @@ pnpm build
 ```
 
 HTTP 测试使用临时 SQLite 和真实监听端口，覆盖配对/权限/幂等/撤销/重启/默认解析/过期/离线；扩展消息测试调用真实 API，Chrome/Edge 实装另外记录。测试不登录、不上传素材、不发布平台内容。
+
+## 素材与模拟任务（阶段 #30）
+
+Skill 入口见仓库 `skills/haiqiai-publishing/SKILL.md`。使用 Skill 专用密钥调用同一客户端；模拟器仅访问所选 API，不访问任何真实平台。`executionMode: "simulation"` 为必填；当前所有真实任务都拒绝。模拟的 `draft_saved` 在界面显示“模拟草稿已保存（未发布）”，不能作为平台结果证据。
+
+```sh
+# HAIQIAI_API_KEY_FILE 指向 Skill 密钥文本文件；勿将密钥放进请求正文。
+pnpm publishing:upload /绝对路径/图片.png image/png upload-result.json
+pnpm publishing:admin POST /v1/tasks confirmed-task.json task-result.json
+pnpm publishing:admin GET /v1/tasks/TASK_ID
+```
+
+上传客户端先流式计算摘要，再声明素材，最后流式传输字节；不将大视频装进 JSON。默认单文件上限512MiB，可用 `HAIQIAI_MAX_ASSET_BYTES` 配置。长度或 SHA-256 不符、上传中断均不 ready；临时文件不会被下载或用于任务，失败可重传。ready 的字节不可修改。媒体类型来自声明并与内容字段核对；本阶段没有进行图片解码或视频格式探测，真实适配前仍需验证文件格式及平台限制。
+
+| 接口 | 身份 | 说明 |
+| --- | --- | --- |
+| POST /assets | Skill/管理 | `{filename,mediaType,sizeBytes,sha256}` → `{assetId,ready:false,maxSizeBytes}` |
+| PUT /assets/{id}/content | Skill/管理 | 带 Idempotency-Key 的原始二进制流，完整校验后 ready |
+| GET /assets/{id}、/assets/{id}/content | Skill/管理/被指定安装 | 元数据/二进制；安装只能访问指定给自己的任务所引用的素材 |
+| POST /tasks | Skill/管理 | 全部目标统一校验后入队；固定内容快照、摘要及 executorId |
+| GET /tasks?cursor=...&limit=...、/tasks/{id} | Skill/管理/被指定安装 | 任务由新到旧分页；安装只看自己的目标；返回逐项状态和计数 |
+| POST /executors/{id}/claims | 所属安装 | 原子领取一项；已有运行目标时不再领取；返回120秒租约 |
+| POST /attempts/{id}/renew | 所属安装 | `{leaseToken}` 续租，过期或已结束409 |
+| POST /attempts/{id}/events | 所属安装 | `{leaseToken,eventId,seq,stage,state,evidence?,reason?}`；事件去重、顺序校验及归属校验 |
+
+请求示例（素材 ID、账号和电脑 ID 替换为本服务发现结果，时间使用真实确认时间）：
+
+```json
+{
+  "executionMode": "simulation",
+  "confirmation": {"confirmedAt": "2026-10-08T07:00:00Z", "contentRevision": "rev-1"},
+  "targets": [{
+    "clientTargetId": "xiaohongshu-a",
+    "platform": "xiaohongshu",
+    "accountId": "ACCOUNT_ID",
+    "computerId": "COMPUTER_ID",
+    "content": {"type": "dynamic", "title": "模拟标题", "content": "模拟正文", "imageAssetIds": ["ASSET_ID"], "tags": []}
+  }]
+}
+```
+
+支持首版白名单内 dynamic/article/video 的公共内容结构（决策 #26），不修改正文或截断素材。数组可省略，正文中的图片使用 `asset://ASSET_ID` 并在 imageAssetIds 声明；模拟文章仅接受基础静态标签和安全链接，未知属性明确拒绝。任一目标不合法时422附 fieldErrors，整批不入队；同请求重复的平台/账号/内容目标拒绝。不支持的 platformOptions/destination 等字段也明确拒绝，后续对应适配器验收后再开放。
+
+本阶段验证公共结构、类型与素材引用，不冒充已验证平台字数/图片数量等限制。capabilities 的 verified/autoPublish 仍为 false，真实任务不能借模拟验收进入平台。
+
+扩展每30秒检查一次，逐个执行；素材使用流式 SHA-256 核对，保留原任务内容快照，事件证据固定 `kind=simulation_receipt`。领取请求编号、当前尝试和待回传事件先保存到本机再发请求；没有真实提交动作。API与扩展重启不会丢失已保存记录。完整故障恢复、取消、submit-intent、reconcile、resume 属于 #31；本阶段过期租约停止，不自动回队列，不承诺已处理所有恢复情况。
+
+服务端流式写独立临时文件，校验后原子改名再标 ready；进程被强制终止可能留下 `.partial` 文件，首版不自动清理历史，文件不会变为 ready。生产部署仍需另外授权与实际HTTPS/跨电脑验收。

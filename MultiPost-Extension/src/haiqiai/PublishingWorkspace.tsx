@@ -2,11 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button, Card, CardBody, HeroUIProvider, Input } from "@heroui/react";
 import { Send } from "lucide-react";
 import type { ConnectionView } from "./connection";
-import messages from "./messages.json";
-
-function message(key: keyof typeof messages): string {
-  return globalThis.chrome?.i18n?.getMessage(key) || messages[key].message;
-}
+import { message } from "./i18n";
 
 export default function PublishingWorkspace() {
   const [view, setView] = useState<ConnectionView>({ connected: false, status: "disconnected" });
@@ -14,7 +10,7 @@ export default function PublishingWorkspace() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function run(action: "status" | "refresh" | "pair") {
+  async function run(action: "status" | "refresh" | "pair" | "simulate" | "nextTasks") {
     setBusy(true); setError("");
     try {
       const result = await chrome.runtime.sendMessage({ type: "HAIQIAI_PUBLISHING_CONNECTION", action, ...(action === "pair" ? { apiUrl, code } : {}) });
@@ -60,6 +56,20 @@ export default function PublishingWorkspace() {
                 <ul>{view.accounts?.map(account => <li key={account.id}>{account.platform} · {account.displayName} · {message(account.bindingState === "matched" ? "hqAccountMatched" : account.bindingState === "mismatch" ? "hqAccountMismatch" : account.bindingState === "logged_out" ? "hqAccountLoggedOut" : "hqAccountUnobserved")}</li>)}</ul>
                 <p className="text-sm text-default-600">{message("hqRevokeHelp")}</p>
                 <Button onPress={() => void run("refresh")} isDisabled={busy}>{message("hqRefresh")}</Button>
+                <Button color="primary" onPress={() => void run("simulate")} isDisabled={busy || view.status !== "connected"}>{message("hqRunSimulation")}</Button>
+                <h3 className="font-medium">{message("hqTasks")}</h3>
+                {!view.tasks?.length && <p>{message("hqNoTasks")}</p>}
+                {view.tasks?.map(task => <section key={task.taskId} className="flex flex-col gap-3 rounded-lg border border-divider p-4">
+                  <h4 className="font-medium">{message("hqSimulationTask")}</h4>
+                  <p className="break-all text-sm text-default-600">{task.taskId}</p>
+                  {task.targets.map(target => <div key={target.id} className="flex flex-col gap-2">
+                    <p>{target.platform} · {target.clientTargetId} · {message(target.state === "queued" ? "hqQueued" : target.state === "running" ? "hqRunning" : target.state === "draft_saved" ? "hqSimulationSaved" : target.state === "failed" ? "hqFailed" : "hqNeedsAttention")}</p>
+                    <details><summary>{message("hqContentSnapshot")}</summary><pre className="whitespace-pre-wrap break-words text-sm">{[target.content.title, target.content.content, target.content.htmlContent].filter(value => typeof value === "string").join("\n\n")}</pre></details>
+                    {target.evidence && <p className="text-sm">{target.evidence.detail}</p>}
+                    {target.reason && <p role="alert" className="text-danger">{target.reason.message} · {target.reason.nextAction}</p>}
+                  </div>)}
+                </section>)}
+                {view.nextCursor && <Button onPress={() => void run("nextTasks")} isDisabled={busy}>{message("hqMoreTasks")}</Button>}
               </div>
             )}
             {(error || view.error) && <p role="alert" className="text-danger">{error || view.error}</p>}

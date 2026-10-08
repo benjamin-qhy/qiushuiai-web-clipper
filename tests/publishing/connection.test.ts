@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { startServer } from '../../packages/publishing-api/server.mts'
 import { registerPublishingConnection } from '../../MultiPost-Extension/src/haiqiai/connection'
 
@@ -33,6 +33,28 @@ it('pairs through the extension message boundary, persists its credential privat
     const result = await send({ action: 'pair', apiUrl: server.url, code: pairing.code })
     expect(result.data).toMatchObject({ connected: true, executor: { computerId: computer.id, browserName: 'Chrome', online: true } })
     expect(JSON.stringify(result)).not.toContain('"key"')
+    const executor = result.data.executor
+    const account = await api('/accounts', { executorId: executor.id, platform: 'xiaohongshu', platformAccountId: 'demo', displayName: '模拟账号' })
+    const task = await api('/tasks', { executionMode: 'simulation', confirmation: { confirmedAt: new Date().toISOString(), contentRevision: 'r1' }, targets: [{ clientTargetId: 'a', computerId: executor.computerId, browserId: executor.browserId, profileId: executor.profileId, accountId: account.id, platform: 'xiaohongshu', content: { type: 'dynamic', content: '模拟正文' } }] })
+    const completed = await send({ action: 'simulate' })
+    expect(completed.data.tasks.find((item: any) => item.taskId === task.taskId)).toMatchObject({ executionMode: 'simulation', counts: { draft_saved: 1 } })
+    expect(JSON.stringify(completed)).not.toContain('leaseToken')
+    const bytes = new TextEncoder().encode('GOOD')
+    const asset = await api('/assets', { filename: 'test.png', mediaType: 'image/png', sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })
+    await fetch(`${server.url}/v1/assets/${asset.assetId}/content`, { method: 'PUT', headers: { Authorization: `Bearer ${adminKey}`, 'Idempotency-Key': randomUUID() }, body: bytes })
+    async function submitImage(label: string) {
+      return api('/tasks', { executionMode: 'simulation', confirmation: { confirmedAt: new Date().toISOString(), contentRevision: label }, targets: [{ clientTargetId: label, computerId: executor.computerId, browserId: executor.browserId, profileId: executor.profileId, accountId: account.id, platform: 'xiaohongshu', content: { type: 'dynamic', content: label, imageAssetIds: [asset.assetId] } }] })
+    }
+    const digestTask = await submitImage('digest')
+    const originalFetch = globalThis.fetch
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => url.endsWith(`/assets/${asset.assetId}/content`) ? Promise.resolve(new Response('EVIL')) : originalFetch(url, init))
+    const digestFailure = await send({ action: 'simulate' })
+    expect(digestFailure.data.tasks.find((task: any) => task.taskId === digestTask.taskId).targets[0].reason).toMatchObject({ code: 'ASSET_DIGEST_MISMATCH', causeKnown: true, stage: 'download' })
+    const httpTask = await submitImage('http')
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => url.endsWith(`/assets/${asset.assetId}/content`) ? Promise.resolve(new Response('', { status: 503 })) : originalFetch(url, init))
+    const httpFailure = await send({ action: 'simulate' })
+    expect(httpFailure.data.tasks.find((task: any) => task.taskId === httpTask.taskId).targets[0].reason).toMatchObject({ code: 'ASSET_HTTP_ERROR', causeKnown: true, stage: 'download' })
+    vi.stubGlobal('fetch', originalFetch)
     const keys = await fetch(`${server.url}/v1/keys`, { headers: { Authorization: `Bearer ${adminKey}` } }).then(response => response.json())
     await api(`/keys/${keys.keys[0].id}/revoke`, {})
     await alarmListener({ name: 'haiqiai-publishing-heartbeat' })
