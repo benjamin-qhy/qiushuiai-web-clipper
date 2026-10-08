@@ -1,0 +1,7 @@
+{
+  "hqPublishTitle": { "message": "发布工作台" },
+  "hqClipperSettings": { "message": "剪藏设置" },
+  "hqPublishDisconnected": { "message": "尚未连接发布服务" },
+  "hqPublishPending": { "message": "发布服务接入完成后，可在这里查看指定给当前浏览器的任务和处理结果。" },
+  "hqPublishAwaitingService": { "message": "等待接入发布服务" }
+}

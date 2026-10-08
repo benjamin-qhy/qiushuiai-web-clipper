@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const publishingAvailable = import.meta.env.BROWSER !== 'firefox'
 import { browser } from 'wxt/browser'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSettings } from '../../src/composables/useSettings'
@@ -209,6 +210,7 @@ async function testConnection() {
         <div class="nav-title">设置</div>
       </div>
       <div class="nav-body">
+        <a v-if="publishingAvailable" class="nav-item" href="/publish.html" target="_blank">发布工作台</a>
         <div class="nav-group-label">通用</div>
         <a class="nav-item" :class="{ active: activeSection === 'vault' }" href="#section-vault" @click.prevent="scrollTo('vault')">笔记库</a>
         <a class="nav-item" :class="{ active: activeSection === 'images' }" href="#section-images" @click.prevent="scrollTo('images')">图片</a>

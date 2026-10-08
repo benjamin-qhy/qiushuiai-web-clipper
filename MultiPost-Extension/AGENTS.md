@@ -93,3 +93,7 @@ Background script (`src/background/index.ts`) routes messages:
 3. Add entry to corresponding InfoMap (e.g., `DynamicInfoMap` in `src/sync/dynamic.ts`)
 4. Add account getter in `src/sync/account/` if platform requires login detection
 5. Add i18n keys for platform name
+
+## HaiqiAI integration
+
+`src/haiqiai/` holds the integrated React/HeroUI publishing workspace, local messages and styles. The root WXT build hosts it through `entrypoints/publish/` and copies its messages into extension locales. Run integrated checks and `pnpm build` from the repository root when editing this module. Original Plasmo entrypoints remain upstream reference and are not loaded by WXT. API connection and publishing are not implemented yet.

@@ -8,6 +8,7 @@ import { getSettings, saveSettings } from '../../src/storage/settings'
 import { useUpdateChecker } from '../../src/composables/useUpdateChecker'
 import { saveLinkNote } from '../../src/getnote/api'
 
+const publishingAvailable = import.meta.env.BROWSER !== 'firefox'
 const version = browser.runtime.getManifest().version
 const updateChecker = useUpdateChecker()
 const vault = useVaultStore()
@@ -176,6 +177,7 @@ async function handleSubDirBlur() {
 
 <template>
   <div class="popup">
+    <a v-if="publishingAvailable" class="publish-link" href="/publish.html" target="_blank">发布工作台</a>
     <!-- 版本更新提示 -->
     <div v-if="updateChecker.updateAvailable.value" class="update-banner">
       🔔 有新版本 v{{ updateChecker.latestVersion.value }} 可用
@@ -315,6 +317,7 @@ async function handleSubDirBlur() {
 </template>
 
 <style scoped>
+.publish-link { display: block; padding: 10px 16px; color: #2563eb; text-align: right; }
 .popup {
   width: 380px;
   max-height: 580px;

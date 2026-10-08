@@ -4,5 +4,8 @@
     ".output",
     "node_modules",
     "MultiPost-Extension"
-  ]
+  ],
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
 }
