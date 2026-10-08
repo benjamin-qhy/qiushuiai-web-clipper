@@ -35,7 +35,7 @@ export default defineConfig({
     default_locale: 'zh_CN',
     name: 'QiushuiAI · 网页剪藏',
     description: 'QiushuiAI · 网页剪藏 — 将网页，飞书、金山文档一键保存为 Obsidian Markdown 笔记',
-    permissions: ['storage', 'activeTab', 'scripting', 'tabs', 'sidePanel'],
+    permissions: ['storage', 'activeTab', 'scripting', 'tabs', 'sidePanel', 'alarms'],
     host_permissions: [
       '*://*.feishu.cn/*',
       '*://*.kdocs.cn/*',

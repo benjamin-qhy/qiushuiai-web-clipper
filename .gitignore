@@ -28,3 +28,6 @@ web-ext.config.ts
 *.njsproj
 *.sln
 *.sw?
+
+# Local publishing API credentials and data
+.haiqiai-publishing/

@@ -1,6 +1,8 @@
 import { browser } from 'wxt/browser'
 import { isDouyinFavoritesPage } from '../src/douyin/collect'
 
+import { registerPublishingConnection } from '../MultiPost-Extension/src/haiqiai/connection'
+
 const sidePanel = browser.sidePanel as typeof browser.sidePanel | undefined
 
 async function syncTabAction(tabId: number, url?: string): Promise<void> {
@@ -32,6 +34,7 @@ async function syncActiveTab(): Promise<void> {
 
 export default defineBackground({
   main() {
+    if (!import.meta.env.FIREFOX) registerPublishingConnection()
     if (sidePanel) {
       sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => null)
       sidePanel.setOptions({ enabled: false }).catch(() => null)

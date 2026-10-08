@@ -6,6 +6,7 @@
     "MultiPost-Extension"
   ],
   "compilerOptions": {
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true
   }
 }

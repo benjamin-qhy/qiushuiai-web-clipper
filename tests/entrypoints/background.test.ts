@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { browser, listeners } = vi.hoisted(() => {
   const listeners: Record<string, (...args: any[]) => void> = {}
@@ -25,6 +25,11 @@ vi.mock('wxt/browser', () => ({ browser }))
 beforeEach(async () => {
   vi.clearAllMocks()
   vi.resetModules()
+  vi.stubGlobal('chrome', {
+    storage: { local: { setAccessLevel: vi.fn().mockResolvedValue(undefined), get: vi.fn().mockResolvedValue({}) } },
+    alarms: { create: vi.fn().mockResolvedValue(undefined), onAlarm: { addListener: vi.fn() } },
+    runtime: { onMessage: { addListener: vi.fn() }, onStartup: { addListener: vi.fn() }, onInstalled: { addListener: vi.fn() } },
+  })
   vi.stubGlobal('defineBackground', (definition: { main: () => void }) => definition)
   const background = await import('../../entrypoints/background')
   background.default.main()
@@ -49,3 +54,5 @@ describe('tab action routing', () => {
     expect(browser.sidePanel.open).toHaveBeenCalledWith({ tabId: 8 })
   })
 })
+
+afterEach(() => vi.unstubAllGlobals())

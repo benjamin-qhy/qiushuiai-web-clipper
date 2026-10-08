@@ -12,7 +12,9 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "vue-tsc --noEmit",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "publishing:api": "node packages/publishing-api/server.mts",
+    "publishing:admin": "node packages/publishing-api/admin.mts"
   },
   "dependencies": {
     "@earendil-works/pi-ai": "^0.85.1",

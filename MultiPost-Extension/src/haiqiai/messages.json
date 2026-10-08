@@ -1,7 +1,113 @@
 {
-  "hqPublishTitle": { "message": "发布工作台" },
-  "hqClipperSettings": { "message": "剪藏设置" },
-  "hqPublishDisconnected": { "message": "尚未连接发布服务" },
-  "hqPublishPending": { "message": "发布服务接入完成后，可在这里查看指定给当前浏览器的任务和处理结果。" },
-  "hqPublishAwaitingService": { "message": "等待接入发布服务" }
+  "hqPublishTitle": {
+    "message": "发布工作台"
+  },
+  "hqClipperSettings": {
+    "message": "剪藏设置"
+  },
+  "hqPublishDisconnected": {
+    "message": "尚未连接发布服务"
+  },
+  "hqConnected": {
+    "message": "已连接发布服务"
+  },
+  "hqOffline": {
+    "message": "发布服务暂时不可达"
+  },
+  "hqRevoked": {
+    "message": "连接已撤销或失效"
+  },
+  "hqConnectionError": {
+    "message": "连接失败，请稍后重试"
+  },
+  "hqConnectionScope": {
+    "message": "当前支持连接与账号查询，发布任务尚未接入。"
+  },
+  "hqApiUrl": {
+    "message": "API 地址"
+  },
+  "hqPairingCode": {
+    "message": "一次性配对码"
+  },
+  "hqPairingHelp": {
+    "message": "由管理端登记电脑、浏览器和用户配置后生成，10 分钟内有效。"
+  },
+  "hqPair": {
+    "message": "连接此浏览器"
+  },
+  "hqLocation": {
+    "message": "浏览器 / 用户配置"
+  },
+  "hqExecutorId": {
+    "message": "安装实例"
+  },
+  "hqLastHeartbeat": {
+    "message": "最后心跳"
+  },
+  "hqNeverObserved": {
+    "message": "尚无记录"
+  },
+  "hqAccounts": {
+    "message": "已登记账号"
+  },
+  "hqNoAccounts": {
+    "message": "尚未登记账号，请在管理端添加。"
+  },
+  "hqAccountMatched": {
+    "message": "观测账号匹配，执行前仍需复核"
+  },
+  "hqAccountMismatch": {
+    "message": "账号不匹配"
+  },
+  "hqAccountLoggedOut": {
+    "message": "未登录"
+  },
+  "hqAccountUnobserved": {
+    "message": "尚未核对实际登录账号"
+  },
+  "hqRevokeHelp": {
+    "message": "更换配对前，请在管理端撤销当前安装密钥。"
+  },
+  "hqRefresh": {
+    "message": "刷新连接状态"
+  },
+  "hqEnterApi": {
+    "message": "请填写 API 地址"
+  },
+  "hqHttpsRequired": {
+    "message": "远程 API 必须使用 HTTPS，本机可使用 HTTP"
+  },
+  "hqInvalidKey": {
+    "message": "连接凭据无效或已撤销，请重新配对"
+  },
+  "hqPairConflict": {
+    "message": "安装或配对请求发生冲突，请联系管理端检查"
+  },
+  "hqRejected": {
+    "message": "服务拒绝请求，请核对配对码和配置"
+  },
+  "hqInstanceChanged": {
+    "message": "服务实例已改变，请重新配对"
+  },
+  "hqNetworkError": {
+    "message": "无法连接发布服务，请检查地址、网络和服务状态"
+  },
+  "hqOnlyWorkspace": {
+    "message": "仅发布工作台可管理连接"
+  },
+  "hqRevokeFirst": {
+    "message": "请先在管理端撤销当前安装，再重新配对"
+  },
+  "hqEnterCode": {
+    "message": "请填写配对码"
+  },
+  "hqUnsupportedAction": {
+    "message": "不支持的操作"
+  },
+  "hqInvalidEndpoint": {
+    "message": "无法连接服务，请检查 API 地址与网络"
+  },
+  "hqComputer": {
+    "message": "执行电脑"
+  }
 }
