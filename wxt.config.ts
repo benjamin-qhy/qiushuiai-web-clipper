@@ -11,6 +11,7 @@ const themeRoot = dirname(require.resolve('@heroui/theme', { paths: [dirname(req
 export default defineConfig({
   modules: ['@wxt-dev/module-vue', '@wxt-dev/module-react'],
   vite: () => ({
+    resolve: { dedupe: ['react', 'react-dom', '@heroui/react'] },
     css: {
       postcss: {
         plugins: [tailwindcss({

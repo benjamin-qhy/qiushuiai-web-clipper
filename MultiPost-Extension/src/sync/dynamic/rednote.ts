@@ -2,7 +2,11 @@ import type { DynamicData, SyncData } from "../common";
 
 // 优先发布图文
 export async function DynamicRednote(data: SyncData) {
-  const { title, content, images, tags } = data.data as DynamicData;
+  const { title, content, images, tags, videos } = data.data as DynamicData;
+  // Final submission must be a separate operation after the task API grants submit intent.
+  if (data.isAutoPublish) throw new Error("SUBMIT_INTENT_REQUIRED: 此入口仅准备内容，不再直接点击发布");
+  if (!images?.length) throw new Error("MISSING_REQUIRED_FIELD: 小红书图文需要图片");
+  if (videos?.length || tags?.length) throw new Error("UNSUPPORTED_FIELD: 图文视频或独立话题尚未验收，不可忽略或自行拼接");
   // 辅助函数：等待元素出现
   function waitForElement(selector: string, timeout = 10000): Promise<Element> {
     return new Promise((resolve, reject) => {
@@ -12,11 +16,13 @@ export async function DynamicRednote(data: SyncData) {
         return;
       }
 
+      let timer: ReturnType<typeof setTimeout>;
       const observer = new MutationObserver(() => {
         const element = document.querySelector(selector);
         if (element) {
           resolve(element);
           observer.disconnect();
+          clearTimeout(timer);
         }
       });
 
@@ -25,7 +31,7 @@ export async function DynamicRednote(data: SyncData) {
         subtree: true,
       });
 
-      setTimeout(() => {
+      timer = setTimeout(() => {
         observer.disconnect();
         reject(new Error(`Element with selector "${selector}" not found within ${timeout}ms`));
       }, timeout);
@@ -36,24 +42,20 @@ export async function DynamicRednote(data: SyncData) {
   async function uploadImages() {
     const fileInput = (await waitForElement('input[type="file"]')) as HTMLInputElement;
     if (!fileInput) {
-      console.error("未找到文件输入元素");
-      return;
+      throw new Error("PAGE_CHANGED: 未找到图片输入控件");
     }
 
     const dataTransfer = new DataTransfer();
 
     for (const fileInfo of images) {
-      try {
-        const response = await fetch(fileInfo.url);
-        if (!response.ok) {
-          throw new Error(`HTTP 错误! 状态: ${response.status}`);
-        }
-        const blob = await response.blob();
-        const file = new File([blob], fileInfo.name, { type: fileInfo.type });
-        dataTransfer.items.add(file);
-      } catch (error) {
-        console.error(`上传图片 ${fileInfo.url} 失败:`, error);
-      }
+      const response = await fetch(fileInfo.url, { signal: AbortSignal.timeout(30000) });
+      if (!response.ok) throw new Error(`ASSET_DOWNLOAD_FAILED: HTTP ${response.status}`);
+      const blob = await response.blob();
+      if (!blob.size || blob.size > 32_000_000) throw new Error("INVALID_ASSET_SIZE: 图片为空或超过已观测的32MB上限");
+      if (!["image/png", "image/jpeg", "image/webp"].includes(blob.type)) throw new Error("INVALID_ASSET_TYPE: 图片格式尚不支持");
+      if (fileInfo.size !== undefined && blob.size !== fileInfo.size) throw new Error("ASSET_SIZE_MISMATCH: 图片大小与确认素材不一致");
+      const file = new File([blob], fileInfo.name, { type: blob.type });
+      dataTransfer.items.add(file);
     }
 
     if (dataTransfer.files.length > 0) {
@@ -62,7 +64,7 @@ export async function DynamicRednote(data: SyncData) {
       await new Promise((resolve) => setTimeout(resolve, 2000)); // 等待文件处理
       console.log("文件上传操作完成");
     } else {
-      console.error("没有成功添加任何文件");
+      throw new Error("ASSET_UPLOAD_FAILED: 未准备完整图片");
     }
   }
 
@@ -74,16 +76,17 @@ export async function DynamicRednote(data: SyncData) {
     // 点击上传图文按钮
     const uploadButtons = document.querySelectorAll('span[class="title"]');
     const uploadButton = Array.from(uploadButtons).find((element) =>
-      element.textContent?.includes("上传图文"),
+      element.textContent?.trim() === "上传图文" &&
+      !element.closest('[aria-hidden="true"]') &&
+      element.getBoundingClientRect().x >= 0 && element.getBoundingClientRect().y >= 0 &&
+      getComputedStyle(element.parentElement!).opacity === "1",
     ) as HTMLElement;
 
     if (!uploadButton) {
-      console.error("未找到上传图文按钮");
-      return;
+      throw new Error("PAGE_CHANGED: 未找到可见图文入口");
     }
 
     uploadButton.click();
-    uploadButton.dispatchEvent(new Event("click", { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // 上传文件
@@ -94,6 +97,7 @@ export async function DynamicRednote(data: SyncData) {
     const titleInput = (await waitForElement('input[type="text"]')) as HTMLInputElement;
     if (titleInput) {
       const titleText = title || "";
+      if (titleInput.maxLength >= 0 && titleText.length > titleInput.maxLength) throw new Error("CONTENT_TOO_LONG: 标题超过页面声明上限");
       titleInput.value = titleText;
       titleInput.dispatchEvent(new Event("input", { bubbles: true }));
     }
@@ -107,34 +111,14 @@ export async function DynamicRednote(data: SyncData) {
         cancelable: true,
         clipboardData: new DataTransfer(),
       });
-      const tagSuffix = tags?.length ? ` ${tags.map((t) => `#${t}#`).join(" ")}` : "";
-      contentPasteEvent.clipboardData.setData("text/plain", `${content || ""}${tagSuffix}`);
+      contentPasteEvent.clipboardData!.setData("text/plain", content || "");
       contentEditor.dispatchEvent(contentPasteEvent);
       await new Promise((resolve) => setTimeout(resolve, 1000));
       contentEditor.blur();
-      console.log("设置内容:", content);
+      if (contentEditor.innerText.replace(/\r\n/g, "\n") !== (content || "").replace(/\r\n/g, "\n")) throw new Error("CONTENT_MISMATCH: 页面正文与确认内容不同");
     }
 
-    // 自动发布
-    if (data.isAutoPublish) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const buttons = document.querySelectorAll("button");
-      const publishButton = Array.from(buttons).find((button) =>
-        button.textContent?.includes("发布"),
-      ) as HTMLButtonElement;
-
-      if (publishButton) {
-        // 等待按钮可用
-        while (publishButton.getAttribute("aria-disabled") === "true") {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          console.log("等待发布按钮可用...");
-        }
-
-        console.log("点击发布按钮");
-        publishButton.click();
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-        window.location.href = "https://creator.xiaohongshu.com/new/note-manager";
-      }
-    }
+    // Filling the editor is not proof of a saved draft or a successful upload/publication.
+    if (titleInput.value !== (title || "")) throw new Error("CONTENT_MISMATCH: 页面标题与确认内容不同");
   }
 }

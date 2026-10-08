@@ -217,5 +217,29 @@
   },
   "hqStageSubmit": {
     "message": "提交前确认阶段"
+  },
+  "hqXhsInspect": {
+    "message": "检查小红书页面（只读）"
+  },
+  "hqXhsMultiplePages": {
+    "message": "存在多个小红书创作页面，请只保留待验收的一页后检查。"
+  },
+  "hqXhsOpenPage": {
+    "message": "请先在此浏览器打开小红书创作服务平台。"
+  },
+  "hqXhsLogin": {
+    "message": "小红书创作平台尚未登录，请手动登录后重新检查。"
+  },
+  "hqXhsUnavailable": {
+    "message": "无法读取小红书页面，请检查页面是否已关闭或刷新。"
+  },
+  "hqXhsUnverified": {
+    "message": "本次检查仅读取页面，不执行上传或发布。稳定账号ID尚未核对，自动发布仍未开放。"
+  },
+  "hqXhsObservedName": {
+    "message": "页面显示昵称"
+  },
+  "hqXhsObservedNumber": {
+    "message": "页面显示小红书账号"
   }
 }

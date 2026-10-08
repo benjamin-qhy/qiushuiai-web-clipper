@@ -93,7 +93,7 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - `skills/haiqiai-publishing/SKILL.md` 是随仓库交付的 Skill 调用入口，说明确认、上传、幂等提交和模拟结果查询；使用专用 Skill 凭据，不自动安装到全局技能目录。
 - `packages/publishing-api/` 为独立 Node 24 + SQLite 发布 API；当前实现管理配对、分权密钥、发现、账号登记/观测、心跳、默认配置及目标预检，已新增素材流式上传校验及模拟任务提交/领取/事件查询；模拟恢复协议已接入，真实执行尚未接入。`server.mts` 提供服务，`admin.mts` 为本机/远程管理及 Skill 请求入口，`upload.mts` 流式上传并保存可重试回执，`capabilities.mts` 将首版范围标为未验证；`assets.mts` 管理完整性校验，`tasks.mts` 管理模拟任务快照/租约/证据，`recovery.mts` 管理提交意图、取消、旧执行停止确认、有限恢复和只读核对，`targets.mts` 共用目标解析，`model.mts`/`protocol.mts` 定义持久化类型和协议辅助。运行数据和凭据默认存 `.haiqiai-publishing/`（不入库）。
 - 正在实施规格与19项开发任务，见[开发规格](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/27)。开发及测试范围已获用户授权；部署和真实发布仍须对应授权。
-- `entrypoints/publish/` 是WXT托管的React发布入口；`MultiPost-Extension/src/haiqiai/` 使用原MultiPost的React/HeroUI体系承载本地界面及独立样式/文案。已接入配对、连接状态、账号及模拟任务列表；`simulation.ts` 仅流式核对素材并回传模拟草稿，`i18n.ts` 共用本地化文案；真实发布尚未接入；上游官方服务器入口不载入整合包。
+- `entrypoints/publish/` 是WXT托管的React发布入口；`MultiPost-Extension/src/haiqiai/` 使用原MultiPost的React/HeroUI体系承载本地界面及独立样式/文案。已接入配对、连接状态、账号及模拟任务列表；`simulation.ts` 仅流式核对素材并回传模拟草稿，`i18n.ts` 共用本地化文案；`rednote.ts` 只读检查当前浏览器的小红书创作页，不把昵称或页面账号号当成已核验稳定ID；上游 `src/sync/dynamic/rednote.ts` 已拆掉无提交授权的自动点击，改为严格准备入口，尚未接入真实任务或验收上传结果；真实发布尚未接入；上游官方服务器入口不载入整合包。
 - Chrome/Edge弹窗与设置页可进入发布工作台；Firefox保持剪藏，不构建发布页。仅显式引入的发布模块参与根构建，未迁入的上游源码不自动加载。
 - 发布系统规划已确认，实施顺序与验收见[开发验收决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/25)。用户明确要求开始前确认：实际开发、部署或真实发布须先获得对应范围的明确授权；采用规划不代表授权开工。已获授权的范围不重复询问。
 - 内容字段与平台映射见[发布内容决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/26)：Skill 提交确认后的各平台内容，扩展不自动改写、截断或删减；超限和缺项须明确报错。MultiPost 既有静默截断行为仍待整改，不能视为已符合此规则。
@@ -234,3 +234,9 @@ Uses the default five canonical triage labels. See `docs/agents/triage-labels.md
 
 Uses a single-context domain-document layout. See `docs/agents/domain.md`.
 Project vocabulary is maintained in `CONTEXT.md`.
+
+MultiPost 的平台入口回归测试位于 `MultiPost-Extension/tests/`，由根目录 `pnpm exec vitest run` 一并执行；它们继续使用子项目类型配置，不进入根项目类型检查。
+
+根 WXT 构建和 Vitest 统一解析根目录 React/ReactDOM/HeroUI 实例，避免子项目安装独立依赖后出现重复 React 导致发布页失效。
+
+小红书当前页面观测、单图上传填写验收与未完成项见 `docs/research/2026-10-08-xiaohongshu-editor-acceptance.md`；这不是完整自动发布验收。

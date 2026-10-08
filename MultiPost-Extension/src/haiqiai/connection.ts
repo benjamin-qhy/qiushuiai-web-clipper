@@ -1,3 +1,4 @@
+import { inspectRednote, type RednoteInspection } from "./rednote";
 import { runSimulation, type SimulationProgress, type TaskView } from "./simulation";
 import { message as localize } from "./i18n";
 
@@ -10,6 +11,7 @@ export interface ExecutorView {
 }
 export interface AccountView { id: string; platform: string; displayName: string; bindingState: string }
 export interface ConnectionView {
+  xiaohongshu?: RednoteInspection;
   connected: boolean; status: "disconnected" | "connected" | "offline" | "revoked";
   apiUrl?: string; executor?: ExecutorView; accounts?: AccountView[]; tasks?: TaskView[]; nextCursor?: string | null; error?: string;
 }
@@ -91,6 +93,9 @@ export function registerPublishingConnection() {
     }
     void serialized(async () => {
       const state = await load();
+      if (message.action === "inspectXiaohongshu") {
+        state.view.xiaohongshu = await inspectRednote(); await save(state); return state.view;
+      }
       if (message.action === "pair") {
         if (state.connection && state.view.status !== "revoked") throw new Error(localize("hqRevokeFirst"));
         const apiUrl = endpoint(message.apiUrl);

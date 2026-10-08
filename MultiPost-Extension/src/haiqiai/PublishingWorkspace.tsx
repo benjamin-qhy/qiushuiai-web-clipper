@@ -10,7 +10,7 @@ export default function PublishingWorkspace() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function run(action: "status" | "refresh" | "pair" | "simulate" | "nextTasks" | "reconcile", targetId?: string) {
+  async function run(action: "status" | "refresh" | "pair" | "simulate" | "nextTasks" | "reconcile" | "inspectXiaohongshu", targetId?: string) {
     setBusy(true); setError("");
     try {
       const result = await chrome.runtime.sendMessage({ type: "HAIQIAI_PUBLISHING_CONNECTION", action, ...(targetId ? { targetId } : {}), ...(action === "pair" ? { apiUrl, code } : {}) });
@@ -37,6 +37,12 @@ export default function PublishingWorkspace() {
           <CardBody className="gap-4 p-6">
             <h2 className="text-lg font-medium">{message(statusLabels[view.status])}</h2>
             <p className="text-default-600">{message("hqConnectionScope")}</p>
+            <Button onPress={() => void run("inspectXiaohongshu")} isDisabled={busy}>{message("hqXhsInspect")}</Button>
+            {view.xiaohongshu && <div className="flex flex-col gap-2 text-sm">
+              {view.xiaohongshu.displayName && <p>{message("hqXhsObservedName")}: {view.xiaohongshu.displayName}</p>}
+              {view.xiaohongshu.creatorAccountNumber && <p>{message("hqXhsObservedNumber")}: {view.xiaohongshu.creatorAccountNumber}</p>}
+              <p>{view.xiaohongshu.message}</p>
+            </div>}
             {(!view.connected || view.status === "revoked") && (
               <form className="flex flex-col gap-4" onSubmit={event => { event.preventDefault(); void run("pair"); }}>
                 <Input type="url" label={message("hqApiUrl")} value={apiUrl} onValueChange={setApiUrl} isRequired placeholder="http://127.0.0.1:43129" />
