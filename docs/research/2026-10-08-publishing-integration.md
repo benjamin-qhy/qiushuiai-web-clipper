@@ -14,7 +14,7 @@
 
 ## 源码事实与改造边界
 
-以下源码路径均基于调查时主工作区 `/Users/qiushui/work/qiushui/qiushuiai-web-clipper`。MultiPost 引入来源记录为上游提交 `9e9138831b7a3c782d9010f7dfd1ae6d474ebe11`，但现场副本包含本地修订，不能把全部现场行为归因于该上游提交；相对链接在源码尚未合并的研究分支中可能不可用。
+调查已逐文件核对：原始 MultiPost 仓库 228 个跟踪文件均与提交 `9e9138831b7a3c782d9010f7dfd1ae6d474ebe11` 一致；复制目录中 227 个文件字节一致，仅 `CLAUDE.md` 的构建说明调整并新增 `AGENTS.md`，发布源码没有改动。以下 MultiPost 证据链接固定到该上游提交；根项目证据使用仓库内相对路径。
 
 | 范围 | 已查事实 | 对整合的影响 |
 |---|---|---|
@@ -26,17 +26,17 @@
 | 账号 | `Record<accountKey, AccountInfo>` 按平台覆盖；部分平台没有账号刷新器 | 不等于多账号系统；需设备/浏览器配置实例与平台账号分别建模，执行前重新验证账号 |
 | 素材 | `FileData` 主要是 URL，脚本在页面 `fetch(url)` 后创建 File；视频另有 `videoFile` | 原始本机路径、跨设备 blob URL、File 对象都不能直接作为 REST 传输协议 |
 
-证据：[package.json](../../MultiPost-Extension/package.json)、[common.ts](../../MultiPost-Extension/src/sync/common.ts)、[小红书图文](../../MultiPost-Extension/src/sync/dynamic/rednote.ts)、[抖音视频](../../MultiPost-Extension/src/sync/video/douyin.ts)、[后台](../../MultiPost-Extension/src/background/index.ts)、[标签管理](../../MultiPost-Extension/src/background/services/tabs.ts)、[账号](../../MultiPost-Extension/src/sync/account.ts)。
+证据：[package.json](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/package.json)、[common.ts](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/sync/common.ts)、[小红书图文](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/sync/dynamic/rednote.ts)、[抖音视频](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/sync/video/douyin.ts)、[后台](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/background/index.ts)、[标签管理](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/background/services/tabs.ts)、[账号](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/sync/account.ts)。
 
 ### 官方服务器耦合不能只改一个 URL
 
-后台 API 服务把生产 host 固定为 `https://multipost.app`，以 apiKey、extensionClientId 定时 ping；收到 NEW_TASK 后只是打开服务器给定页面，不是领取完整、排他的任务。安装流程打开官方安装页，并初始化官方信任域；刷新账号也会调用 ping。必须替换这些入口，同时清理关联设置和授权页的调用链。[API 服务](../../MultiPost-Extension/src/background/services/api.ts)、[后台](../../MultiPost-Extension/src/background/index.ts)、[账号](../../MultiPost-Extension/src/sync/account.ts)
+后台 API 服务把生产 host 固定为 `https://multipost.app`，以 apiKey、extensionClientId 定时 ping；收到 NEW_TASK 后只是打开服务器给定页面，不是领取完整、排他的任务。安装流程打开官方安装页，并初始化官方信任域；刷新账号也会调用 ping。必须替换这些入口，同时清理关联设置和授权页的调用链。[API 服务](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/background/services/api.ts)、[后台](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/background/index.ts)、[账号](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/sync/account.ts)
 
-页面桥梁目前接受 window.postMessage，经后台验证发起域后转发。这是网页控制扩展的通道；自建 API 拉取模式不需要原封不动保留。若保留调试或网页提交能力，必须单独设计来源检查、消息白名单和任务确认校验，不能让任意网页直接发自动发布命令。[页面桥梁](../../MultiPost-Extension/src/contents/extension.ts)
+页面桥梁目前接受 window.postMessage，经后台验证发起域后转发。这是网页控制扩展的通道；自建 API 拉取模式不需要原封不动保留。若保留调试或网页提交能力，必须单独设计来源检查、消息白名单和任务确认校验，不能让任意网页直接发自动发布命令。[页面桥梁](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/contents/extension.ts)
 
 ### 结果语义是最大缺口
 
-小红书和抖音示例存在点击发布按钮后结束的路径，没有统一作品 ID、链接、审核状态和成功证据回传。小红书图片逐张上传失败后会记录日志继续，因此“函数执行完”甚至不保证素材齐全。公众号文章脚本调用后台接口创建文章并跳到编辑页，界面写“文章同步成功”；这只能作为草稿/编辑阶段的证据，不能表述为已公开发布。[小红书](../../MultiPost-Extension/src/sync/dynamic/rednote.ts)、[抖音](../../MultiPost-Extension/src/sync/video/douyin.ts)、[公众号](../../MultiPost-Extension/src/sync/article/weixin.ts)
+小红书和抖音示例存在点击发布按钮后结束的路径，没有统一作品 ID、链接、审核状态和成功证据回传。小红书图片逐张上传失败后会记录日志继续，因此“函数执行完”甚至不保证素材齐全。公众号文章脚本调用后台接口创建文章并跳到编辑页，界面写“文章同步成功”；这只能作为草稿/编辑阶段的证据，不能表述为已公开发布。[小红书](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/sync/dynamic/rednote.ts)、[抖音](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/sync/video/douyin.ts)、[公众号](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/src/sync/article/weixin.ts)
 
 建议适配器报告阶段与证据，明确区分：填写完成、草稿已保存、提交成功待审核、公开发布、需要人工处理、失败、结果未知。不是每个平台都能自动证明所有状态；未知结果不得自动重新点击发布。
 
@@ -68,4 +68,4 @@ Chrome 官方指出 content script 的跨域请求仍受页面来源约束；有
 
 至少验证：同任务重复提交只产生一个目标任务；两设备抢领只有一个执行；发布前账号切换能阻止错发；素材不全不提交；worker/浏览器重启恢复；发布后断网不重发；验证码回报人工处理；草稿/审核中不冒充公开成功；剪藏与抖音收藏入口仍可使用；断开官方服务器后流程正常。
 
-本次没有改产品源码，不需要构建验收；研究结论不能替代各平台当前页面的真实浏览器验收。移植时保留现有 Apache-2.0 LICENSE 和上游来源说明，逐个记录脚本变更。[随附许可证](../../MultiPost-Extension/LICENSE)
+本次没有改产品源码，不需要构建验收；研究结论不能替代各平台当前页面的真实浏览器验收。移植时保留现有 Apache-2.0 LICENSE 和上游来源说明，逐个记录脚本变更。[随附许可证](https://github.com/leaperone/MultiPost-Extension/blob/9e9138831b7a3c782d9010f7dfd1ae6d474ebe11/LICENSE)
