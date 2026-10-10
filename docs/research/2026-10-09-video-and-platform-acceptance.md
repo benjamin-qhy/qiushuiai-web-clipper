@@ -198,7 +198,7 @@ API自动执行finish=save_draft，11:52:02出现“保存成功”并退出编�
 
 ### 2026-10-10 Skill 实际执行续测
 
-按仓库 haiqiai-publishing Skill 执行，任务 `2d8a779c-d24f-48d2-b636-c8ad49483e0b`，目标 `034ab86b-e136-47db-93ea-040cb3999244`，结束动作 save_draft。复用同一API已ready的视频与横版封面，账号秋水聊AI落地，合集AI落地。已通过接口完成上传、原文及5话题填写，两次原页接续固定横版并复用已上传封面；当前 needs_attention / COVER_IDENTITY_UNCONFIRMED，未提交、未保存草稿。API停止后在本次恢复启动，Chrome执行器在线。原编辑页2019533516的浏览器检查连接返回Debugger unattached；未获得当前裁切画面核对，因此未提交acceptCoverCrop，也未新建任务或重复上传。运行记录位于 `.haiqiai-publishing/skill-runs/2026-10-09-skill-test-1/`。首次确认时间+00:00格式被API拒绝且未入队，改为原时间的Z格式后成功入队；Skill参数参考已补充UTC格式约束。
+按仓库 qiushui-publishing Skill 执行，任务 `2d8a779c-d24f-48d2-b636-c8ad49483e0b`，目标 `034ab86b-e136-47db-93ea-040cb3999244`，结束动作 save_draft。复用同一API已ready的视频与横版封面，账号秋水聊AI落地，合集AI落地。已通过接口完成上传、原文及5话题填写，两次原页接续固定横版并复用已上传封面；当前 needs_attention / COVER_IDENTITY_UNCONFIRMED，未提交、未保存草稿。API停止后在本次恢复启动，Chrome执行器在线。原编辑页2019533516的浏览器检查连接返回Debugger unattached；未获得当前裁切画面核对，因此未提交acceptCoverCrop，也未新建任务或重复上传。运行记录位于 `.haiqiai-publishing/skill-runs/2026-10-09-skill-test-1/`。首次确认时间+00:00格式被API拒绝且未入队，改为原时间的Z格式后成功入队；Skill参数参考已补充UTC格式约束。
 
 
 2026-10-10续测：用户恢复浏览器后，原页2019533516只读截图确认仍是此前接受的横版裁切。第3次continue-video传acceptCoverCrop=true，API已记录cropAcceptedAt；执行仍停止在COVER_IDENTITY_UNCONFIRMED，未产生submit-intent。封面编辑器与已上传1672×941候选仍在，尚未保存草稿；此错误不能再解释为仅缺少用户裁切同意，需定位候选文件身份核对失败。保留原页与任务，不重复上传。

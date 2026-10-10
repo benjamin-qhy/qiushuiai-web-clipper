@@ -1,6 +1,6 @@
 # clip publish 发布 API：配对、素材、任务、执行与恢复
 
-当前阶段覆盖 #29、#30、#31。支持 Node.js 24.13+、本机或服务器运行，使用 Node 内置 HTTP 与 SQLite，HTML 校验使用根目录依赖 parse5（先运行 pnpm install）。素材与模拟任务已接入；小红书真实任务只读预检已接入，小红书图文填写、暂存、发布及结果核对已实机验收；视频多次原页接续暂存已验收，最新封面临时链接失效修复待重载验证。当前进度与换电脑接续见 `docs/research/2026-10-10-publishing-handoff.md`。单个 API 实例服务一个使用者；管理、Skill、各扩展分别使用不同凭据。不自动跨实例同步。
+当前实现覆盖配对、素材、模拟任务与有限真实任务。支持 Node.js 24.13+、本机或服务器运行，使用 Node 内置 HTTP 与 SQLite，HTML 校验使用根目录依赖 parse5（先运行 pnpm install）。小红书图文填写、暂存、发布及结果核对已有特定实机证据；视频多次原页接续暂存已验收，最新封面临时链接失效修复待重载验证。当前进度与换电脑接续见 [`docs/research/2026-10-10-publishing-handoff.md`](../../docs/research/2026-10-10-publishing-handoff.md)。单个 API 实例服务一个使用者；管理、Skill、各扩展分别使用不同凭据。不自动跨实例同步。
 
 ## 启动与管理
 
@@ -58,7 +58,7 @@ pnpm publishing:admin POST /v1/keys/KEY_ID/revoke - revoke-result.json
 
 心跳每30秒，服务端90秒未收到显示离线。离线不等于发布失败。常规心跳不读取平台账号；小红书真实预检读取创作首页与指定个人主页，账号号匹配后回传观测；管理端登记账号会显示“尚未核对实际登录账号”。后续平台适配接入账号观测后，状态为 matched/mismatch/logged_out，执行前仍需重新核对。
 
-平台标识：`weixin`、`weixinchannel`、`xiaohongshu`、`douyin`、`tiktok`、`weibo`、`youtube`、`okjike`、`toutiao`、`linkedin`、`maimai`、`zsxq`、`medium`。类型详见 capabilities 接口；存在上游脚本不代表可以自动发布。
+平台标识：`weixin`、`weixinchannel`、`x`、`xiaohongshu`、`douyin`、`tiktok`、`weibo`、`youtube`、`okjike`、`toutiao`、`linkedin`、`maimai`、`zsxq`、`medium`。类型详见 capabilities 接口；存在上游脚本不代表可以自动发布。
 
 ## 扩展与验证
 
@@ -70,16 +70,16 @@ pnpm compile
 pnpm build
 ```
 
-HTTP 测试使用临时 SQLite 和真实监听端口，覆盖配对/权限/幂等/撤销/重启/默认解析/过期/离线；扩展消息测试调用真实 API，Chrome/Edge 实装另外记录。测试不登录、不上传素材、不发布平台内容。
+HTTP 测试使用临时 SQLite 和本地监听端口，覆盖配对/权限/幂等/撤销/重启/默认解析/过期/离线，也向临时 API 上传测试字节并核对素材。扩展消息测试调用本地测试 API；这些测试不登录真实平台，也不发布平台内容。Chrome/Edge 实装验收另行记录。
 
-## 素材与模拟任务（阶段 #30）
+## 素材与任务
 
-Skill 入口见仓库 `skills/haiqiai-publishing/SKILL.md`。使用 Skill 专用密钥调用同一客户端；模拟器仅访问所选 API，不访问任何真实平台。模拟使用 `executionMode: "simulation"`；真实只读预检使用 `executionMode: "live"` 与 `confirmation.action: "prepare"`。模拟的 `draft_saved` 在界面显示“模拟草稿已保存（未发布）”，不能作为平台结果证据。
+Skill 入口见仓库 `skills/qiushui-publishing/SKILL.md`。使用 Skill 专用密钥调用同一客户端；模拟器仅访问所选 API，不访问任何真实平台。模拟使用 `executionMode: "simulation"`；真实只读预检使用 `executionMode: "live"` 与 `confirmation.action: "prepare"`。模拟的 `draft_saved` 在界面显示“模拟草稿已保存（未发布）”，不能作为平台结果证据。
 
 ```sh
 # HAIQIAI_API_KEY_FILE 指向 Skill 密钥文本文件；勿将密钥放进请求正文。
 pnpm publishing:upload /绝对路径/图片.png image/png upload-result.json
-pnpm publishing:admin POST /v1/tasks confirmed-task.json task-result.json
+pnpm publishing:admin POST /v1/tasks/dynamic confirmed-task.json task-result.json
 pnpm publishing:admin GET /v1/tasks/TASK_ID
 ```
 
@@ -90,7 +90,7 @@ pnpm publishing:admin GET /v1/tasks/TASK_ID
 | POST /assets | Skill/管理 | `{filename,mediaType,sizeBytes,sha256}` → `{assetId,ready:false,maxSizeBytes}` |
 | PUT /assets/{id}/content | Skill/管理 | 带 Idempotency-Key 的原始二进制流，完整校验后 ready |
 | GET /assets/{id}、/assets/{id}/content | Skill/管理/被指定安装 | 元数据/二进制；安装只能访问指定给自己的任务所引用的素材 |
-| POST /tasks | Skill/管理 | 全部目标统一校验后入队；固定内容快照、摘要及 executorId |
+| POST /tasks/dynamic、/tasks/video、/tasks/article | Skill/管理 | 按内容类型统一校验目标后入队；固定内容快照、摘要及 executorId。`POST /tasks` 仅兼容旧调用 |
 | GET /tasks?cursor=...&limit=...、/tasks/{id} | Skill/管理/被指定安装 | 任务由新到旧分页；安装只看自己的目标；返回逐项状态和计数 |
 | POST /executors/{id}/claims | 所属安装 | 原子领取一项；已有运行目标时不再领取；返回120秒租约 |
 | POST /attempts/{id}/renew | 所属安装 | `{leaseToken}` 续租，过期或已结束409 |
@@ -114,18 +114,18 @@ pnpm publishing:admin GET /v1/tasks/TASK_ID
 
 支持首版白名单内 dynamic/article/video 的公共内容结构（决策 #26），不修改正文或截断素材。数组可省略，正文中的图片使用 `asset://ASSET_ID` 并在 imageAssetIds 声明；模拟文章仅接受基础静态标签和安全链接，未知属性明确拒绝。任一目标不合法时422附 fieldErrors，整批不入队；同请求重复的平台/账号/内容目标拒绝。不支持的 platformOptions/destination 等字段也明确拒绝，后续对应适配器验收后再开放。
 
-本阶段验证公共结构、类型与素材引用，不冒充已验证平台字数/图片数量等限制。capabilities 的 verified/autoPublish 仍为 false，真实任务不能借模拟验收获得发布权限。
+模拟模式验证公共结构、类型与素材引用，不代表已验证平台字数或图片数量等限制。capabilities 的 verified/autoPublish 仍为 false；真实任务只开放下文列出的平台和动作，不能借模拟验收获得发布权限。
 
-扩展每30秒检查一次，逐个执行；素材使用流式 SHA-256 核对，保留原任务内容快照，事件证据固定 `kind=simulation_receipt`。领取请求编号、当前尝试和待回传事件先保存到本机再发请求；没有真实提交动作。API与扩展重启不会丢失已保存记录。模拟任务的恢复、取消、submit-intent、reconcile、resume 已接入；真实平台页面的停止证明与平台结果核对须逐平台验收。
+扩展每30秒检查一次，逐个执行；素材使用流式 SHA-256 核对，保留原任务内容快照。模拟任务事件证据为 `kind=simulation_receipt`，不触发平台写操作。领取请求编号、当前尝试和待回传事件先保存到本机再发请求；API 与扩展重启后可读取已保存记录。模拟任务的恢复、取消、submit-intent、reconcile、resume 已接入；真实页面的停止证明与结果核对按平台逐项验收，已验收范围见当前交接。
 
 服务端流式写独立临时文件，校验后原子改名再标 ready；进程被强制终止可能留下 `.partial` 文件，首版不自动清理历史，文件不会变为 ready。生产部署仍需另外授权与实际HTTPS/跨电脑验收。
 
-## 取消与安全恢复（模拟范围）
+## 取消与安全恢复
 
 | 接口 | 调用方 | 规则 |
 |---|---|---|
 | GET /attempts/{id} | Skill/管理/所属安装 | 当前阶段、租约期限、提交意图与目标；不返回租约凭据 |
-| POST /attempts/{id}/submit-intent | 所属安装 | `{leaseToken,contentDigest,accountId,assetsChecked:true}`；有效执行且未取消才接受，返回授权仅限 simulation |
+| POST /attempts/{id}/submit-intent | 所属安装 | 模拟任务使用 `{leaseToken,contentDigest,accountId,assetsChecked:true}`；真实 `fill` 的 `save_draft`/`publish` 还需 `editorTabId,preparationChecked:true,finish`，仅核对一致并取得一次性授权后执行 |
 | POST /tasks/{id}/cancel | Skill/管理 | `{}`；等待中的目标直接取消，执行中的目标等待安装确认停止；已有提交意图只能核对 |
 | POST /attempts/{id}/recover | 所属安装 | `{leaseToken,executionStopped:true,pageClosed:true,retryNotBefore?,downloadRetryCount?}`；同一安装确认旧执行已停止及页面不再可提交，废止旧尝试 |
 | POST /targets/{id}/resume | Skill/管理 | `{}`；提交前重新核对原账号/素材后恢复，提交意图后只安排核对 |
@@ -139,9 +139,9 @@ pnpm publishing:admin GET /v1/tasks/TASK_ID
 - 如确实要重新提交未知目标，使用新请求键，并在目标内传 `replacesTargetId`，确认记录传 `duplicateRiskAccepted:true`，明确经过用户重复风险确认；原记录保留。真实任务 prepare 只读，fill 按下文 finish 参数决定保持页面、暂存或提交。
 - 页面显示取消请求、提交意图、原因代码和阶段；“核对已有结果”按钮不触发重新发布。恢复/取消管理动作由 Skill API 发起。
 
-## 小红书真实任务预检（#32 部分交付）
+## 真实任务预检与小红书图文填写
 
-在原任务结构中使用 `executionMode: "live"`，确认记录增加 `action: "prepare"`。当前仅接受小红书 dynamic、非空标题及图片，不接受视频。prepare 只读；fill 的完成动作见下文。
+在任务结构中使用 `executionMode: "live"`，确认记录增加 `action: "prepare"`。当前只读预检开放小红书 dynamic/video、X dynamic、抖音和脉脉已接入的类型；小红书图文需要非空标题和图片，视频使用 `videoAssetId`。prepare 只读；fill 的完成动作见下文，具体平台限制由任务校验决定。
 
 - 领取传 `{executionMode:"live"}`；缺省保持 simulation，防止旧模拟器领取真实任务。两种模式共用同一安装的单执行锁。领取及查询返回真实模式。
 - 原文、8个话题、图片顺序等内容全部作为不可变快照保存；扩展不会删减。
@@ -150,7 +150,7 @@ pnpm publishing:admin GET /v1/tasks/TASK_ID
 - prepare 核对完成返回 needs_attention / READONLY_CHECKED，不上传。独立的 action:fill 打开新鲜创作首页两次核对账号，验证素材后打开新空编辑页，按原顺序上传、填写完整文字、精确选择原生话题并核对预览。PNG/JPEG/WebP、最多18图，32 MiB图片总量是当前传输预算限制，不是平台上限。
 - POST /attempts/:id/prepare-intent 接受 leaseToken、contentDigest、accountId、assetsChecked:true、editorTabId，仅 live/fill 可用。一次性记录 preparationStartedAt、editorTabId、preparationDeadline；最长90秒，逐次写入检查，禁止重复授权。
 - finish=stay 填写完成返回 needs_attention / AWAITING_PUBLISH_CONFIRMATION，阶段 preparation；不是草稿或发表成功。异常保留原页，禁止自动重填。已开始填写但未记录提交意图的目标 resume/reconcile 返回 PREPARATION_REVIEW_REQUIRED；提交后仅安排原页面结果核对。recover 在原安装核对写入函数实际结束（preparationStopped:true）时可接受 pageClosed:false，保留原页面供检查，不自动排队。
-- 7图8话题及合集自动填写已实机通过。新完成动作见下文；其真实端到端验收及公开发表结果确认尚未完成，capabilities 保持未验证。
+- 小红书图文 7 图 8 话题、精确合集、自动暂存及发布、只读核对 `published` 和作品 URL 已在特定账号与素材上实机通过；其他账号、内容类型及结果分支不能据此推定通过。capabilities 仍保持未验证。
 
 
 ### 合集与原创参数
@@ -200,19 +200,19 @@ live submit-intent 除 leaseToken/contentDigest/accountId/assetsChecked 外要�
 真实完成 evidence 使用 platform_receipt，包含 platform/accountId/observedAt/detail/finish/editorTabId/title/signal，草稿另含 storage:browser_local。submitted 表示平台收到提交，不证明公开可见；缺少证据返回 outcome_unknown 并附原因。准备后不恢复上传；已提交任务的 reconcile 只读核对结果，不重复点击。发布成功提示后自动核对创作后台与公开作品：账号、标题、提交时间窗口、正文、话题和图片张数均匹配才回传 published 及 canonical URL。核对不充分时保留已知 submitted；不能把未找到作品解释为审核中或失败。submitted 可再次请求 /targets/:id/reconcile。明确审核中/未通过也须先完成作品身份和内容核对；未通过使用 platform_rejection 证据并注明原因，未知具体原因不得猜测。
 
 
-## 2026-10-09 视频与其他平台增量（待真实验收）
+## 视频与其他平台的当前范围
 
 小红书 live 支持 dynamic/video。video 使用 `videoAssetId`，横竖封面分别使用 `horizontalCoverAssetId`、`verticalCoverAssetId`；两者可同时传，不能再混传 `coverAssetId`。支持 `collectionName` 精确唯一匹配及 `declareOriginal`。原创协议必须有本篇明确同意才能传 `confirmation.originalAgreementAccepted:true`。
 
-视频及封面合计128 MiB预算，仅MP4视频；准备期限90秒。超时/取消/摘要错误停止，不自动重填。finish 仍为 stay/save_draft/publish；视频真实页面上传、封面及最终动作尚待重载验收。
+视频及封面合计128 MiB预算，仅MP4视频；准备期限90秒。超时/取消/摘要错误停止，不自动重填。finish 仍为 stay/save_draft/publish；小红书视频多次原页接续保存本地草稿已有两次实机证据，新任务单次完成、双封面、视频原创及公开发布未验收，最新封面临时链接失效修复待重载实机验证。
 
 新增 X dynamic 的 live/prepare 与 live/fill/stay，最多4张PNG/JPEG/WebP；保守普通帖字数预算280（大多数中文字符计2），不自动截断；话题不含空格或井号。X拒绝 save_draft/publish 和视频。抖音、脉脉仅允许 live/prepare，拒绝fill。抖音账号标识使用明确命名空间 `handle:<抖音号>`，不冒充sec_uid；脉脉匿名发布身份无法确认时返回人工处理。公众号未开放真实任务。
 
 新范围的接口可用不代表平台验收通过；详细证据与下一步见 `docs/research/2026-10-09-video-and-platform-acceptance.md`。
 
-新增 `POST /v1/targets/:id/continue-video` 原页接续，限Skill/管理身份请求已停止的live小红书video、原因VIDEO_UPLOAD_UNCONFIRMED、未提交且未取消的目标。保留原内容/finish/账号/安装/editor，领取时固定previousRunId；重新获得一次性prepare-intent后仅核对原页视频摘要并继续空文案填写，不重新上传。旧页已编辑、原执行未结束、素材不符、标签页丢失均停止。普通resume仍禁止已开始填写的任务。真实原页接续待重载验收。
+`POST /v1/targets/:id/continue-video` 允许 Skill/管理身份在前次执行已停止、未提交且未取消时，按下文错误码白名单接续原小红书视频任务。保留原内容、finish、账号、安装及编辑页；领取时固定 previousRunId，重新取得一次性 prepare-intent 后核对原页素材与已填字段，不重新上传。旧执行未结束、素材不符或标签页丢失时停止；普通 resume 仍禁止已开始填写的任务。多次原页接续存草稿已有特定实机证据。
 
-接口请求体为 `{}`；权限不足403，不满足接续条件409。返回原editorTabId及uploadAllowed:false；结果仍通过原taskId查询。不得以此重发未知结果或修改原任务最终动作。
+接口请求体随中断阶段使用 `{}`、`coverSelection`、`acceptCoverCrop` 或 `confirmedCoverPreviewSha256`，规则见下文；权限不足返回 403，不满足接续条件返回 409。返回原 editorTabId 及 `uploadAllowed:false`；结果仍通过原 taskId 查询。不得以此重发未知结果或修改原任务最终动作。
 
 原页接续停止证据修正：页面临时记录可能随扩展重载消失。claim从API持久化attempt读取previousStoppedAt，可信后台传入原页入口；临时记录缺失时只允许有效的已停止证明，并继续强制原标签页、空文案、视频大小及SHA256核验。仍存在的旧记录若未停止/ID不符仍拒绝。CONTINUATION_UNVERIFIED且存在原接续链的已停止任务可再次显式请求continue-video，不能重传或改变finish。该规则替代上文“缺临时记录一律拒绝”。
 

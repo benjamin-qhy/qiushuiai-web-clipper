@@ -1,10 +1,10 @@
 # clip publish
 
-clip publish：在一个浏览器扩展中剪藏内容、保存笔记，并发布到已接入的平台。仓库与包名为 `qiushui-clip-publish`，浏览器扩展显示名称为“clip publish”。本地目录当前仍为 `haiqiai-browser-extension`。
+clip publish：在一个浏览器扩展中剪藏内容、保存笔记，并发布到已接入的平台。仓库与包名为 `qiushui-clip-publish`，浏览器扩展显示名称为“clip publish”。当前检出目录为 `qiushui-clip-publish`。
 
 ## 当前功能
 
-- 剪藏飞书 docx/wiki、金山文档和通用网页，生成正文与 YAML 元数据。
+- 剪藏飞书 docx/wiki、金山文档和通用网页，生成正文与 YAML 元数据；可保存到笔记库、复制 Markdown 或另存为。
 - 图片保存到每篇笔记资源目录、共享目录，或上传阿里云 OSS。
 - 保存链接到 Get 笔记；在抖音收藏页批量选择并导入链接。
 - 管理多平台 AI 模型、连接测试与系统提示词。
@@ -32,9 +32,9 @@ pnpm exec vitest run --maxWorkers=1
 
 Chrome 打开 `chrome://extensions/`，开启开发者模式，加载 `.output/chrome-mv3/`。Firefox 打开 `about:debugging#/runtime/this-firefox`，临时加载 `.output/firefox-mv2/manifest.json`；临时安装在重启后失效。发行包用 `pnpm zip` 或 `pnpm zip:firefox` 生成，输出文件名包含包名和版本，以 `.output/` 实际产物为准。
 
-首次剪藏前，在弹窗选择 Obsidian 笔记库并授权读写；设置页可配置子目录、图片模式、OSS、Get 笔记和 AI 模型。Chrome 从弹窗或设置页的“发布工作台”进入 API 配对和任务界面。
+首次保存到 Obsidian 前，从弹窗进入设置页选择笔记库并授权读写；设置页可配置子目录、图片模式、OSS、Get 笔记和 AI 模型。Chrome 从弹窗或设置页的“发布工作台”进入 API 配对和任务界面。
 
-发布服务启动、账号登记、素材上传与调用参数见 [发布 API](packages/publishing-api/README.md)，自动化调用见 [发布 Skill](skills/haiqiai-publishing/SKILL.md)。所有平台写操作由 API 驱动扩展；记录最终动作授权与平台结果，结果未知时先核对原任务。
+发布服务启动、账号登记、素材上传与调用参数见 [发布 API](packages/publishing-api/README.md)，自动化调用见 [发布 Skill](skills/qiushui-publishing/SKILL.md)。所有平台写操作由 API 驱动扩展；记录最终动作授权与平台结果，结果未知时先核对原任务。
 
 ## 文档
 

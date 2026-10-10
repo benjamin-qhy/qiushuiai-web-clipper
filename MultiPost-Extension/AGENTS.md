@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working in the MultiPost subproject.
 
 ## Project Overview
 
@@ -15,7 +15,7 @@ pnpm lint         # Run ESLint
 pnpm lint:fix     # Auto-fix ESLint issues
 ```
 
-**Note:** Run commands in `MultiPost-Extension/`. After source changes, run `pnpm build` to verify the extension. Keep this file and `AGENTS.md` identical.
+**Note:** Run commands in `MultiPost-Extension/`. After source changes, run `pnpm build` to verify the extension.
 
 ## Architecture
 
@@ -94,21 +94,25 @@ Background script (`src/background/index.ts`) routes messages:
 4. Add account getter in `src/sync/account/` if platform requires login detection
 5. Add i18n keys for platform name
 
-## HaiqiAI integration
+## clip publish integration (`src/haiqiai/`)
 
-`src/haiqiai/` holds the integrated React/HeroUI publishing workspace, local messages and styles. The root WXT build hosts it through `entrypoints/publish/` and copies its messages into extension locales. Run integrated checks and `pnpm build` from the repository root when editing this module. Original Plasmo entrypoints remain upstream reference and are not loaded by WXT. The workspace pairs with a self-hosted API through `connection.ts`, registered by the root background. It uses a separate message namespace and trusted-context local storage, reports 30-second heartbeats, and displays accounts without claiming login verification. `simulation.ts` consumes only explicit simulation tasks, checks assets as a stream and persists claim/event recovery data before reporting a simulated draft. `i18n.ts` shares localized messages. The workspace lists task snapshots and reasons. The simulation worker queries saved attempts after restart, renews leases every 30 seconds during downloads, persists bounded retry times, records submit intent, and only reconciles after intent. The workspace exposes read-only reconciliation and interruption reasons. Live finishing uses one-shot submit intent and page stop/result evidence; installed-extension acceptance remains pending. The API lives in root `packages/publishing-api/`; management and protocol instructions are in its README.
+`src/haiqiai/` holds the integrated React/HeroUI publishing workspace, local messages and styles. The root WXT build hosts it through `entrypoints/publish/` and copies its messages into extension locales. Run integrated checks and `pnpm build` from the repository root when editing this module. Original Plasmo entrypoints remain upstream reference and are not loaded by WXT. The workspace pairs with a self-hosted API through `connection.ts`, registered by the root background. It uses a separate message namespace and trusted-context local storage, reports 30-second heartbeats, and displays accounts without claiming login verification. `simulation.ts` consumes only explicit simulation tasks, checks assets as a stream and persists claim/event recovery data before reporting a simulated draft. `i18n.ts` shares localized messages. The workspace lists task snapshots and reasons. The simulation worker queries saved attempts after restart, renews leases every 30 seconds during downloads, persists bounded retry times, records submit intent, and only reconciles after intent. The workspace exposes read-only reconciliation and interruption reasons. Live finishing uses one-shot submit intent and page stop/result evidence. Xiaohongshu dynamic draft saving, publishing and read-only published/URL reconciliation have specific installed-extension acceptance evidence; video acceptance is limited to multi-step original-page continuation and local draft saving. The API lives in root `packages/publishing-api/`; management and protocol instructions are in its README.
 
 `src/haiqiai/rednote.ts` inspects the sole open Xiaohongshu creator tab through the trusted workspace message. It returns only selected DOM observations, never uploads, submits, or treats the visible creator account number as verified platform identity.
 
-`src/sync/dynamic/rednote.ts` is preparation-only: it rejects `isAutoPublish`, missing images and unverified tag/video fields; any image download/size/type failure stops before assigning the file list. It no longer clicks publish or navigates to the note manager. This upstream entry is not yet wired into live API execution, and upload completion/draft/result verification remains pending platform acceptance.
+`src/sync/dynamic/rednote.ts` is preparation-only: it rejects `isAutoPublish`, missing images and unverified tag/video fields; any image download/size/type failure stops before assigning the file list. It no longer clicks publish or navigates to the note manager. This upstream entry is not the live API execution path. The integrated runner uses `src/sync/dynamic/rednote-prepare.ts`, `rednote-finish.ts` and `rednote-result.ts`; their current acceptance boundaries are in the root handoff.
 
 MultiPost 的平台入口回归测试位于 `MultiPost-Extension/tests/`，由根目录 `pnpm exec vitest run` 一并执行；它们继续使用子项目类型配置，不进入根项目类型检查。
 
 `src/haiqiai/preflight.ts` handles explicit live/prepare tasks as read-only preflight: separate claims, public-profile/creator-home account-number cross-check, streamed asset verification and durable reason events. This read-only action never injects uploads or submission; the separate fill action is described below. The read-only action reports READONLY_CHECKED as needs_attention; no draft/publish success is permitted. `rednote.ts` accepts an expected profile ID and returns ACCOUNT_MATCHED only when that profile's account number matches the creator home. Missing/ambiguous evidence remains unverified. This is a snapshot, not final-submit authorization.
 
-`src/sync/dynamic/rednote-prepare.ts` is the isolated upload/fill entry. The integrated runner retains read-only prepare and separately authorizes live/fill: fresh creator-home checks, verified image bytes, a new empty editor, exact native topics and preview comparison. API prepare-intent permits one injection with a maximum 90-second deadline. Interrupted preparation never reuploads automatically; keep the original page for inspection. For finish=stay, success means needs_attention / AWAITING_PUBLISH_CONFIRMATION, not saved draft or published. PNG/JPEG/WebP, up to 18 images, combined 32 MiB transport budget. Automatic 7-image/8-topic filling was observed; the collection selector fix was verified; parameter-driven finishing and complete result reconciliation still require installed-extension acceptance.
+`src/sync/dynamic/rednote-prepare.ts` is the isolated upload/fill entry. The integrated runner retains read-only prepare and separately authorizes live/fill: fresh creator-home checks, verified image bytes, a new empty editor, exact native topics and preview comparison. API prepare-intent permits one injection with a maximum 90-second deadline. Interrupted preparation never reuploads automatically; keep the original page for inspection. For finish=stay, success means needs_attention / AWAITING_PUBLISH_CONFIRMATION, not saved draft or published. PNG/JPEG/WebP, up to 18 images, combined 32 MiB transport budget. Xiaohongshu dynamic 7-image/8-topic filling, exact collection selection, API-driven draft/publish and read-only published/URL reconciliation have specific installed-extension evidence. Video uses this preparation entry for its current API path; new-task single-run completion, two covers, originality and public publish remain unverified.
 
 Xiaohongshu dynamic supports optional collectionName and declareOriginal. Match exactly one collection label; never fuzzy-select. The originality agreement modal returns ORIGINAL_AGREEMENT_REQUIRED unless originalAgreementAccepted=true records explicit user consent. Recovery reads the actual finished flag or confirms the page closed; API clock expiry alone is not stop proof. Preserve any saved page result and its concrete reason. Preview image bytes or full decoded pixels must match the ordered originals; lossy platform recompression remains unconfirmed.
+
+## Historical acceptance notes
+
+The dated notes below record what was known at each test point. For current status use the root `docs/research/2026-10-10-publishing-handoff.md`; an older pending statement does not override a later acceptance record.
 
 The initial Xiaohongshu collection chooser uses `.collection-plugin-button`; after selection it becomes `.collection-plugin-choose`. Support both states. The real 7-image/8-topic fill reached collection selection; remaining collection/originality settings were completed through browser UI, not an executor success event. See the root live-preflight acceptance log for this boundary.
 
