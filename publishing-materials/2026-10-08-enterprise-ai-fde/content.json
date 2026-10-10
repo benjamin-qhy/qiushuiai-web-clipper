@@ -1,0 +1,84 @@
+{
+  "id": "2026-10-08-enterprise-ai-fde",
+  "savedAt": "2026-10-08",
+  "purpose": "用户指定用于小红书和其他平台贴图图文测试时正式发布的素材",
+  "title": "企业AI落地，别只问多久能上线",
+  "content": "Gartner预测，到2028年，70%的企业可能放弃由供应商FDE构建的代理式AI，原因包括成本上升，以及企业团队无法独立演进系统。这个预测提醒我们：AI项目不能只验收“第一版是否上线”，还要看团队能否调整流程、排查故障、评估模型并处理例外。我做企业AI落地，会和企业团队一起推进，在共同工作中带他们学会使用、判断和改进。准备引入AI项目的老板和业务负责人，可以把“六个月后团队能独立做什么”加入验收讨论。",
+  "tags": [
+    "企业AI落地",
+    "人工智能",
+    "AI项目管理",
+    "AI智能体",
+    "企业数字化",
+    "业务流程优化",
+    "AI项目验收",
+    "FDE"
+  ],
+  "images": [
+    {
+      "order": 1,
+      "file": "01.png",
+      "mimeType": "image/png",
+      "bytes": 2017606,
+      "width": 1086,
+      "height": 1448,
+      "sha256": "1f5de293ba8ed34dc7f3d620d7dd973fbf69967d6833891c3d5b6fa070fd5cd1"
+    },
+    {
+      "order": 2,
+      "file": "02.png",
+      "mimeType": "image/png",
+      "bytes": 2232791,
+      "width": 1086,
+      "height": 1448,
+      "sha256": "8088cd389fd8c2e0b3531e2b29f6ff4a2cacaad0b4916ea3d0e41ba8aa71dd17"
+    },
+    {
+      "order": 3,
+      "file": "03.png",
+      "mimeType": "image/png",
+      "bytes": 1751916,
+      "width": 1086,
+      "height": 1448,
+      "sha256": "cd6a0f78ea02cc4d08c389b022a5dd8c3e68ab2116346a7752679c6ba7131f92"
+    },
+    {
+      "order": 4,
+      "file": "04.png",
+      "mimeType": "image/png",
+      "bytes": 2286927,
+      "width": 1086,
+      "height": 1448,
+      "sha256": "38e7412000430b4b506feec1800d5c282dbbb79e0b526f5ceaa73f28a7e7c78e"
+    },
+    {
+      "order": 5,
+      "file": "05.png",
+      "mimeType": "image/png",
+      "bytes": 1613530,
+      "width": 1086,
+      "height": 1448,
+      "sha256": "667daf92b9bbc1f731f27ada7bde916f9e8a344a8a23f0ff41e7ab48ed7aee83"
+    },
+    {
+      "order": 6,
+      "file": "06.png",
+      "mimeType": "image/png",
+      "bytes": 2182400,
+      "width": 1086,
+      "height": 1448,
+      "sha256": "cba0260bdeed42e9e451bc6610929016a59a0cffa69f68063acbab85f4e83407"
+    },
+    {
+      "order": 7,
+      "file": "07.png",
+      "mimeType": "image/png",
+      "bytes": 1830581,
+      "width": 1086,
+      "height": 1448,
+      "sha256": "addebbe03310fb264bd3c0c4bddf85ccb0f5345da5f6964d07b372fff75faa4c"
+    }
+  ],
+  "publicationStatus": "not_published",
+  "targetSelection": "具体平台、账号和执行环境由后续发布任务指定"
+}

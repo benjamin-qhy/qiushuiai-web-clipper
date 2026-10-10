@@ -10,7 +10,7 @@ export default function PublishingWorkspace() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function run(action: "status" | "refresh" | "pair" | "simulate" | "nextTasks" | "reconcile" | "inspectXiaohongshu", targetId?: string) {
+  async function run(action: "prepare" | "status" | "refresh" | "pair" | "simulate" | "nextTasks" | "reconcile" | "inspectXiaohongshu", targetId?: string) {
     setBusy(true); setError("");
     try {
       const result = await chrome.runtime.sendMessage({ type: "HAIQIAI_PUBLISHING_CONNECTION", action, ...(targetId ? { targetId } : {}), ...(action === "pair" ? { apiUrl, code } : {}) });
@@ -22,7 +22,7 @@ export default function PublishingWorkspace() {
   }
   useEffect(() => { if (typeof globalThis.chrome?.runtime?.sendMessage === "function") void run("status"); }, []);
   const statusLabels = { disconnected: "hqPublishDisconnected", connected: "hqConnected", offline: "hqOffline", revoked: "hqRevoked" } as const;
-  const stages: Record<string, "hqStageValidation" | "hqStageDownload" | "hqStageSimulation" | "hqStageReconciliation" | "hqStageSubmit"> = { validation: "hqStageValidation", download: "hqStageDownload", simulation: "hqStageSimulation", reconciliation: "hqStageReconciliation", submit_intent: "hqStageSubmit" };
+  const stages: Record<string, "hqStageValidation" | "hqStageDownload" | "hqStageSimulation" | "hqStageReconciliation" | "hqStageSubmit" | "hqStagePreparation"> = { preparation: "hqStagePreparation", validation: "hqStageValidation", download: "hqStageDownload", simulation: "hqStageSimulation", reconciliation: "hqStageReconciliation", submit_intent: "hqStageSubmit" };
   return (
     <HeroUIProvider>
       <main className="mx-auto flex max-w-3xl flex-col gap-6 p-8">
@@ -64,18 +64,22 @@ export default function PublishingWorkspace() {
                 <p className="text-sm text-default-600">{message("hqRevokeHelp")}</p>
                 <Button onPress={() => void run("refresh")} isDisabled={busy}>{message("hqRefresh")}</Button>
                 <Button color="primary" onPress={() => void run("simulate")} isDisabled={busy || view.status !== "connected"}>{message("hqRunSimulation")}</Button>
+                <Button onPress={() => void run("prepare")} isDisabled={busy || view.status !== "connected"}>{message("hqRunPreparation")}</Button>
                 <h3 className="font-medium">{message("hqTasks")}</h3>
                 {!view.tasks?.length && <p>{message("hqNoTasks")}</p>}
                 {view.tasks?.map(task => <section key={task.taskId} className="flex flex-col gap-3 rounded-lg border border-divider p-4">
-                  <h4 className="font-medium">{message("hqSimulationTask")}</h4>
+                  <h4 className="font-medium">{message(task.executionMode === "live" ? "hqLiveTask" : "hqSimulationTask")}</h4>
                   <p className="break-all text-sm text-default-600">{task.taskId}</p>
                   {task.targets.map(target => <div key={target.id} className="flex flex-col gap-2">
-                    <p>{target.platform} · {target.clientTargetId} · {message(target.state === "queued" ? "hqQueued" : target.state === "running" ? "hqRunning" : target.state === "draft_saved" ? "hqSimulationSaved" : target.state === "failed" ? "hqFailed" : target.state === "outcome_unknown" ? "hqOutcomeUnknown" : target.state === "cancelled" ? "hqCancelled" : "hqNeedsAttention")}</p>
+                    <p>{target.platform} · {target.clientTargetId} · {message(target.state === "queued" ? "hqQueued" : target.state === "running" ? "hqRunning" : target.state === "draft_saved" ? (task.executionMode === "live" ? "hqDraftSaved" : "hqSimulationSaved") : target.state === "submitted" ? "hqSubmitted" : target.state === "published" ? "hqPublished" : target.state === "failed" ? "hqFailed" : target.state === "outcome_unknown" ? "hqOutcomeUnknown" : target.state === "cancelled" ? "hqCancelled" : "hqNeedsAttention")}</p>
                     <details><summary>{message("hqContentSnapshot")}</summary><pre className="whitespace-pre-wrap break-words text-sm">{[target.content.title, target.content.content, target.content.htmlContent].filter(value => typeof value === "string").join("\n\n")}</pre></details>
+                    {typeof target.content.collectionName === "string" && <p>{message("hqCollectionName")}：{target.content.collectionName}</p>}
+                    {typeof target.content.declareOriginal === "boolean" && <p>{message("hqDeclareOriginal")}：{message(target.content.declareOriginal ? "hqYes" : "hqNo")}</p>}
                     {target.evidence && <p className="text-sm">{target.evidence.detail}</p>}
+                    {typeof target.evidence?.url === "string" && /^https:\/\/www\.xiaohongshu\.com\/explore\/[a-f0-9]{24}$/.test(target.evidence.url) && <a href={target.evidence.url} target="_blank" rel="noreferrer">{message("hqViewPublishedNote")}</a>}
                     {target.cancelRequested && <p>{message("hqCancelPending")}</p>}
                     {target.submitIntentAt && <p className="text-sm">{message("hqSubmitIntent")}</p>}
-                    {target.state === "outcome_unknown" && <Button isDisabled={busy || view.status !== "connected"} onPress={() => void run("reconcile", target.id)}>{message("hqReconcile")}</Button>}
+                    {["outcome_unknown", "submitted"].includes(target.state) && <Button isDisabled={busy || view.status !== "connected"} onPress={() => void run("reconcile", target.id)}>{message("hqReconcile")}</Button>}
                     {target.reason && <p role="alert" className="text-danger">{target.reason.message} · {message(stages[target.reason.stage] || "hqStageValidation")} · {target.reason.code} · {target.reason.nextAction}</p>}
                   </div>)}
                 </section>)}

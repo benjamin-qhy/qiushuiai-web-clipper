@@ -14,11 +14,11 @@ afterEach(async () => {
   await Promise.all(servers.splice(0).map(server => server.close()))
   directories.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true }))
 })
-async function fixture() {
+async function fixture(now?: () => number) {
   const directory = mkdtempSync(join(tmpdir(), 'haiqiai-api-'))
   directories.push(directory)
   const adminKey = 'test-admin-key-with-at-least-32-characters'
-  const server = await startServer({ directory, adminKey, port: 0 })
+  const server = await startServer({ directory, adminKey, port: 0, now })
   servers.push(server)
   async function call(path: string, body?: unknown, token = adminKey, method = body === undefined ? 'GET' : 'POST', key: string = randomUUID()) {
     const response = await fetch(`${server.url}/v1${path}`, {
@@ -207,4 +207,168 @@ it('uploads from the Skill CLI as a stream and reuses its declared asset after a
   expect((await call(`/assets/${result.assetId}`)).data).toMatchObject({ ready: true, sizeBytes: bytes.length })
   const download = await fetch(`${server.url}/v1/assets/${result.assetId}/content`, { headers: { Authorization: `Bearer ${adminKey}` } })
   expect(Buffer.from(await download.arrayBuffer())).toEqual(bytes)
+})
+
+it('routes real Xiaohongshu preparation separately and cannot mistake its observations for a saved draft', async () => {
+  let clock = Date.now()
+  const { call, server, adminKey } = await fixture(() => clock)
+  const computer = (await call('/computers', { name: '真实准备测试' })).data
+  const code = (await call('/pairing-codes', { computerId: computer.id, browserName: 'Chrome', profileName: '工作' })).data.code
+  const executor = (await call('/executors/pair', { pairingCode: code, installationId: randomUUID(), extensionVersion: '1' }, '')).data
+  const account = (await call('/accounts', { executorId: executor.executorId, platform: 'xiaohongshu', platformAccountId: 'stable-user', displayName: '账号' })).data
+  const bytes = Buffer.from('fixture image')
+  const asset = (await call('/assets', { filename: '1.png', mediaType: 'image/png', sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })).data
+  await fetch(`${server.url}/v1/assets/${asset.assetId}/content`, { method: 'PUT', headers: { Authorization: `Bearer ${adminKey}`, 'Idempotency-Key': randomUUID() }, body: bytes })
+  const payload = { executionMode: 'live', confirmation: { action: 'prepare', confirmedAt: new Date().toISOString(), contentRevision: 'r1' }, targets: [{ clientTargetId: 'xhs', computerId: computer.id, browserId: executor.executor.browserId, profileId: executor.executor.profileId, accountId: account.id, platform: 'xiaohongshu', content: { type: 'dynamic', title: '完整标题', content: '原始正文', tags: ['人工智能'], imageAssetIds: [asset.assetId] } }] }
+  const task = await call('/tasks', payload)
+  expect(task.status).toBe(201)
+  expect((await call(`/executors/${executor.executorId}/claims`, {}, executor.key)).data.attempt).toBeNull()
+  const attempt = (await call(`/executors/${executor.executorId}/claims`, { executionMode: 'live' }, executor.key)).data.attempt
+  expect(attempt).toMatchObject({ executionMode: 'live', target: { content: payload.targets[0].content } })
+  expect((await call(`/attempts/${attempt.id}`, undefined, executor.key)).data.executionMode).toBe('live')
+  expect((await call(`/attempts/${attempt.id}/submit-intent`, { leaseToken: attempt.leaseToken, contentDigest: attempt.target.contentDigest, accountId: account.id, assetsChecked: true }, executor.key)).status).toBe(409)
+  const base = { leaseToken: attempt.leaseToken, eventId: randomUUID(), seq: 1, stage: 'validation' }
+  expect((await call(`/attempts/${attempt.id}/events`, { ...base, state: 'draft_saved', evidence: { kind: 'simulation_receipt', platform: 'xiaohongshu', accountId: account.id, observedAt: new Date().toISOString(), detail: '不是真草稿' } }, executor.key)).status).toBe(422)
+  const reason = { code: 'ACCOUNT_UNVERIFIED', message: '稳定账号身份尚未核对', stage: 'validation', causeKnown: true, retryable: false, nextAction: '核对指定账号身份后恢复' }
+  expect((await call(`/attempts/${attempt.id}/events`, { ...base, state: 'needs_attention', reason }, executor.key)).status).toBe(200)
+  expect((await call(`/tasks/${task.data.taskId}`)).data).toMatchObject({ executionMode: 'live', counts: { needs_attention: 1 }, targets: [{ reason }] })
+  expect((await call('/tasks', { ...payload, confirmation: { ...payload.confirmation, action: 'publish' } })).status).toBe(422)
+  const fillContent = { ...payload.targets[0].content, collectionName: 'AI落地', declareOriginal: true }
+  const fillPayload = { ...payload, confirmation: { ...payload.confirmation, action: 'fill' }, targets: [{ ...payload.targets[0], content: fillContent }] }
+  const fill = await call('/tasks', fillPayload)
+  expect(fill.status).toBe(201)
+  const filling = (await call(`/executors/${executor.executorId}/claims`, { executionMode: 'live' }, executor.key)).data.attempt
+  expect(filling.action).toBe('fill')
+  expect(filling.target.content).toEqual(fillContent)
+  expect((await call('/tasks', { ...fillPayload, targets: [{ ...fillPayload.targets[0], content: { ...fillContent, declareOriginal: 'true' } }] })).status).toBe(422)
+  const intent = { leaseToken: filling.leaseToken, contentDigest: filling.target.contentDigest, accountId: account.id, assetsChecked: true, editorTabId: 42 }
+  expect((await call(`/attempts/${filling.id}/prepare-intent`, intent, executor.key)).status).toBe(200)
+  expect((await call(`/attempts/${filling.id}/prepare-intent`, intent, executor.key)).status).toBe(409)
+  const readyReason = { code: 'AWAITING_PUBLISH_CONFIRMATION', message: '图片、正文和话题已填好，等待发布确认', stage: 'preparation', causeKnown: true, retryable: false, nextAction: '检查页面内容后确认发布' }
+  expect((await call(`/attempts/${filling.id}/events`, { leaseToken: filling.leaseToken, eventId: randomUUID(), seq: 1, stage: 'preparation', state: 'needs_attention', reason: readyReason }, executor.key)).status).toBe(200)
+  expect((await call(`/targets/${filling.target.id}/resume`, {})).status).toBe(409)
+  expect((await call(`/tasks/${fill.data.taskId}`)).data.targets[0]).toMatchObject({ state: 'needs_attention', editorTabId: 42, reason: readyReason })
+  await call('/tasks', fillPayload)
+  const interrupted = (await call(`/executors/${executor.executorId}/claims`, { executionMode: 'live' }, executor.key)).data.attempt
+  const grant = await call(`/attempts/${interrupted.id}/prepare-intent`, { ...intent, leaseToken: interrupted.leaseToken }, executor.key)
+  expect(grant.data.durationMs).toBe(90_000)
+  clock += 180_000 // Server expiry does not prove that a remote browser stopped.
+  const proof = { leaseToken: interrupted.leaseToken, executionStopped: true, pageClosed: false }
+  expect((await call(`/attempts/${interrupted.id}/recover`, proof, executor.key)).status).toBe(422)
+  expect((await call(`/attempts/${interrupted.id}/recover`, { ...proof, preparationStopped: true, preparationResult: { ...readyReason, code: 'TOPIC_NOT_FOUND', message: '未找到同名话题' } }, executor.key)).data.state).toBe('needs_attention')
+  expect((await call(`/executors/${executor.executorId}/claims`, { executionMode: 'live' }, executor.key)).data.attempt).toBeNull()
+
+
+})
+
+it('accepts explicit live finish choices and requires live result evidence after a one-shot intent', async () => {
+  const { call, server, adminKey } = await fixture()
+  const computer = (await call('/computers', { name: 'finish' })).data
+  const pairing = (await call('/pairing-codes', { computerId: computer.id, browserName: 'Chrome', profileName: 'default' })).data
+  const executor = (await call('/executors/pair', { pairingCode: pairing.code, installationId: randomUUID(), extensionVersion: '1' }, '')).data
+  const account = (await call('/accounts', { executorId: executor.executorId, platform: 'xiaohongshu', platformAccountId: 'stable-user', displayName: '测试' })).data
+  const bytes = Buffer.from('image')
+  const asset = (await call('/assets', { filename: '1.png', mediaType: 'image/png', sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })).data
+  await fetch(`${server.url}/v1/assets/${asset.assetId}/content`, { method: 'PUT', headers: { Authorization: `Bearer ${adminKey}`, 'Idempotency-Key': randomUUID() }, body: bytes })
+  const payload = { executionMode: 'live', confirmation: { action: 'fill', finish: 'save_draft', originalAgreementAccepted: true, confirmedAt: new Date().toISOString(), contentRevision: 'r1' }, targets: [{ clientTargetId: 'xhs', computerId: computer.id, browserId: executor.executor.browserId, profileId: executor.executor.profileId, accountId: account.id, platform: 'xiaohongshu', content: { type: 'dynamic', title: '原始标题', content: '原文', collectionName: 'AI落地', declareOriginal: true, imageAssetIds: [asset.assetId] } }] }
+  expect((await call('/tasks', { ...payload, confirmation: { ...payload.confirmation, finish: 'unknown' } })).status).toBe(422)
+  const task = await call('/tasks', payload)
+  expect(task.status).toBe(201)
+  const attempt = (await call(`/executors/${executor.executorId}/claims`, { executionMode: 'live' }, executor.key)).data.attempt
+  expect(attempt.confirmation).toMatchObject({ finish: 'save_draft', originalAgreementAccepted: true })
+  const proof = { leaseToken: attempt.leaseToken, accountId: account.id, contentDigest: attempt.target.contentDigest, assetsChecked: true }
+  expect((await call(`/attempts/${attempt.id}/submit-intent`, proof, executor.key)).status).toBe(409)
+  await call(`/attempts/${attempt.id}/prepare-intent`, { ...proof, editorTabId: 77 }, executor.key)
+  const grant = await call(`/attempts/${attempt.id}/submit-intent`, { ...proof, editorTabId: 77, preparationChecked: true, finish: 'save_draft' }, executor.key)
+  expect(grant.status).toBe(200)
+  expect(grant.data).toMatchObject({ authorized: true, finish: 'save_draft', executionMode: 'live' })
+  expect((await call(`/attempts/${attempt.id}/submit-intent`, { ...proof, editorTabId: 77, preparationChecked: true, finish: 'save_draft' }, executor.key)).status).toBe(409)
+  const event = { leaseToken: attempt.leaseToken, eventId: randomUUID(), seq: 1, state: 'draft_saved', stage: 'reconciliation', evidence: { kind: 'platform_receipt', platform: 'xiaohongshu', accountId: account.id, observedAt: new Date().toISOString(), detail: '保存成功', finish: 'save_draft', editorTabId: 77, title: '原始标题', signal: 'draft_saved', storage: 'browser_local' } }
+  expect((await call(`/attempts/${attempt.id}/events`, { ...event, evidence: { ...event.evidence, title: '其他内容' } }, executor.key)).status).toBe(422)
+  expect((await call(`/attempts/${attempt.id}/events`, event, executor.key)).status).toBe(200)
+  expect((await call(`/tasks/${task.data.taskId}`)).data.targets[0]).toMatchObject({ state: 'draft_saved', evidence: { storage: 'browser_local' } })
+})
+
+it('accepts a live Xiaohongshu video without silently ignoring unimplemented cover options', async () => {
+  const { call, server, adminKey } = await fixture()
+  const computer = (await call('/computers', { name: 'video' })).data
+  const pair = (await call('/pairing-codes', { computerId: computer.id, browserName: 'Chrome', profileName: 'default' })).data
+  const executor = (await call('/executors/pair', { pairingCode: pair.code, installationId: randomUUID(), extensionVersion: '1' }, '')).data
+  const account = (await call('/accounts', { executorId: executor.executorId, platform: 'xiaohongshu', platformAccountId: '6a275c1f0000000001007c00', displayName: 'test' })).data
+  const bytes = Buffer.from('video fixture')
+  const asset = (await call('/assets', { filename: 'video.mp4', mediaType: 'video/mp4', sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })).data
+  await fetch(`${server.url}/v1/assets/${asset.assetId}/content`, { method: 'PUT', headers: { Authorization: `Bearer ${adminKey}`, 'Idempotency-Key': randomUUID() }, body: bytes })
+  const target = { clientTargetId: 'video', computerId: computer.id, browserId: executor.executor.browserId, profileId: executor.executor.profileId, platform: 'xiaohongshu', accountId: account.id, content: { type: 'video', title: 'CLI与MCP怎么选', content: '完整正文', tags: [], videoAssetId: asset.assetId } }
+  const payload = { executionMode: 'live', confirmation: { action: 'fill', finish: 'stay', confirmedAt: new Date().toISOString(), contentRevision: 'v1' }, targets: [target] }
+  const coverBytes = Buffer.from('cover fixture')
+  const cover = (await call('/assets', { filename: 'cover.png', mediaType: 'image/png', sizeBytes: coverBytes.length, sha256: createHash('sha256').update(coverBytes).digest('hex') })).data
+  await fetch(`${server.url}/v1/assets/${cover.assetId}/content`, { method: 'PUT', headers: { Authorization: `Bearer ${adminKey}`, 'Idempotency-Key': randomUUID() }, body: coverBytes })
+  const response = await call('/tasks', payload)
+  expect(response.status).toBe(201)
+  expect(response.data.targets[0].content).toEqual(target.content)
+  const options = { ...target.content, horizontalCoverAssetId: cover.assetId, verticalCoverAssetId: cover.assetId, collectionName: 'AI落地', declareOriginal: true }
+  const withCovers = await call('/tasks', { ...payload, targets: [{ ...target, content: options }] })
+  expect(withCovers.status).toBe(201)
+  expect(withCovers.data.targets[0].content).toEqual(options)
+  expect((await call('/tasks', { ...payload, targets: [{ ...target, content: { ...options, coverAssetId: cover.assetId } }] })).status).toBe(422)
+  const claim = (await call(`/executors/${executor.executorId}/claims`, { executionMode: 'live' }, executor.key)).data.attempt
+  const intent = await call(`/attempts/${claim.id}/prepare-intent`, { leaseToken: claim.leaseToken, contentDigest: claim.target.contentDigest, accountId: account.id, assetsChecked: true, editorTabId: 45 }, executor.key)
+  expect(intent.data.durationMs).toBe(90_000)
+  expect((await call(`/targets/${claim.target.id}/continue-video`, {}, executor.key)).status).toBe(403)
+  expect((await call(`/targets/${claim.target.id}/continue-video`, {})).status).toBe(409)
+
+  expect((await call(`/attempts/${claim.id}/prepare-intent`, { leaseToken: claim.leaseToken, contentDigest: claim.target.contentDigest, accountId: account.id, assetsChecked: true, editorTabId: 45 }, executor.key)).status).toBe(409)
+  expect((await call('/tasks', { ...payload, targets: [{ ...target, content: { ...target.content, scheduledPublishTime: 1 } }] })).status).toBe(422)
+  await call(`/attempts/${claim.id}/events`, { leaseToken: claim.leaseToken, eventId: randomUUID(), seq: 1, state: 'needs_attention', stage: 'preparation', reason: { code: 'VIDEO_UPLOAD_UNCONFIRMED', message: 'preview', stage: 'preparation', causeKnown: true, retryable: false, nextAction: 'review' } }, executor.key)
+  expect((await call(`/targets/${claim.target.id}/resume`, {})).status).toBe(409)
+  expect((await call(`/targets/${claim.target.id}/continue-video`, {})).status).toBe(200)
+  expect((await call(`/targets/${claim.target.id}/continue-video`, {})).status).toBe(409)
+
+})
+
+it('allows X stay tasks and other-platform readonly checks while rejecting unverified final actions', async () => {
+  const { call } = await fixture()
+  const computer = (await call('/computers', { name: 'social' })).data
+  const pair = (await call('/pairing-codes', { computerId: computer.id, browserName: 'Chrome', profileName: 'default' })).data
+  const executor = (await call('/executors/pair', { pairingCode: pair.code, installationId: randomUUID(), extensionVersion: '1' }, '')).data
+  for (const platform of ['x', 'douyin', 'maimai']) {
+    const account = (await call('/accounts', { executorId: executor.executorId, platform, platformAccountId: 'test-account', displayName: 'test' })).data
+    const target = { clientTargetId: platform, computerId: computer.id, browserId: executor.executor.browserId, profileId: executor.executor.profileId, platform, accountId: account.id, content: { type: 'dynamic', content: 'CLI处理本地任务，MCP连接系统，Skill沉淀方法。' } }
+    const base = { executionMode: 'live', confirmation: { action: 'prepare', confirmedAt: new Date().toISOString(), contentRevision: 'social-v1' }, targets: [target] }
+    expect((await call('/tasks', base)).status).toBe(201)
+    const fill = { ...base, confirmation: { ...base.confirmation, action: 'fill', finish: 'stay' } }
+    expect((await call('/tasks', fill)).status).toBe(platform === 'x' ? 201 : 422)
+    expect((await call('/tasks', { ...fill, confirmation: { ...fill.confirmation, finish: 'publish' } })).status).toBe(422)
+    if (platform === 'x') expect((await call('/tasks', { ...fill, targets: [{ ...target, content: { ...target.content, content: '中'.repeat(141) } }] })).status).toBe(422)
+  }
+})
+
+it('routes separate content endpoints to platform targets without accepting mixed content types', async () => {
+  const { call, server, adminKey } = await fixture()
+  const computer = (await call('/computers', { name: 'typed-endpoints' })).data
+  const pair = (await call('/pairing-codes', { computerId: computer.id, browserName: 'Chrome', profileName: 'default' })).data
+  const executor = (await call('/executors/pair', { pairingCode: pair.code, installationId: randomUUID(), extensionVersion: '1' }, '')).data
+  const bytes = Buffer.from('video')
+  const video = (await call('/assets', { filename: 'video.mp4', mediaType: 'video/mp4', sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })).data
+  await fetch(`${server.url}/v1/assets/${video.assetId}/content`, { method: 'PUT', headers: { Authorization: `Bearer ${adminKey}`, 'Idempotency-Key': randomUUID() }, body: bytes })
+  for (const [type, platforms, content] of [
+    ['dynamic', ['xiaohongshu', 'weibo'], { content: '图文正文' }],
+    ['video', ['xiaohongshu', 'douyin'], { title: '视频标题', content: '视频正文', videoAssetId: video.assetId }],
+    ['article', ['weixin', 'medium'], { title: '文章标题', htmlContent: '<p>文章正文</p>', markdownContent: '文章正文' }],
+  ] as const) {
+    const targets = []
+    for (const platform of platforms) {
+      const account = (await call('/accounts', { executorId: executor.executorId, platform, platformAccountId: platform + '-' + type, displayName: platform })).data
+      targets.push({ clientTargetId: platform, computerId: computer.id, browserId: executor.executor.browserId, profileId: executor.executor.profileId, accountId: account.id, platform, content })
+    }
+    const body = { executionMode: 'simulation', confirmation: { confirmedAt: new Date().toISOString(), contentRevision: type }, targets }
+    const key = randomUUID()
+    const result = await call('/tasks/' + type, body, adminKey, 'POST', key)
+    expect(result.status, JSON.stringify(result.data)).toBe(201)
+    expect(result.data.targets.map((t: any) => [t.platform, t.content.type])).toEqual(platforms.map(platform => [platform, type]))
+    expect((await call('/tasks/' + type, body, adminKey, 'POST', key)).data.taskId).toBe(result.data.taskId)
+    const wrong = await call('/tasks/' + type, { ...body, targets: [{ ...targets[0], content: { ...content, type: type === 'video' ? 'dynamic' : 'video' } }] })
+    expect(wrong.status).toBe(422)
+    expect(JSON.stringify(wrong.data)).toContain('CONTENT_TYPE_MISMATCH')
+  }
 })

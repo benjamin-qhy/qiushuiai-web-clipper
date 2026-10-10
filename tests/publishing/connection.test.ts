@@ -45,6 +45,44 @@ it('pairs through the extension message boundary, persists its credential privat
     async function submitImage(label: string) {
       return api('/tasks', { executionMode: 'simulation', confirmation: { confirmedAt: new Date().toISOString(), contentRevision: label }, targets: [{ clientTargetId: label, computerId: executor.computerId, browserId: executor.browserId, profileId: executor.profileId, accountId: account.id, platform: 'xiaohongshu', content: { type: 'dynamic', content: label, imageAssetIds: [asset.assetId] } }] })
     }
+    const liveTask = await api('/tasks', { executionMode: 'live', confirmation: { action: 'prepare', confirmedAt: new Date().toISOString(), contentRevision: 'live-r1' }, targets: [{ clientTargetId: 'live', computerId: executor.computerId, browserId: executor.browserId, profileId: executor.profileId, accountId: account.id, platform: 'xiaohongshu', content: { type: 'dynamic', title: '正式测试', content: '保持原文', tags: ['人工智能'], imageAssetIds: [asset.assetId] } }] })
+    Object.assign(globalThis.chrome, { tabs: { query: async () => [] } })
+    const liveResult = await send({ action: 'prepare' })
+    expect(liveResult.data.tasks.find((task: any) => task.taskId === liveTask.taskId)).toMatchObject({ executionMode: 'live', counts: { needs_attention: 1 }, targets: [{ reason: { code: 'PAGE_REQUIRED', stage: 'validation', causeKnown: true, retryable: false } }] })
+    expect(JSON.stringify(liveResult)).not.toContain('leaseToken')
+    const liveAccount = await api('/accounts', { executorId: executor.id, platform: 'xiaohongshu', platformAccountId: '6a275c1f0000000001007c00', displayName: '真实账号' })
+    Object.assign(globalThis.chrome, {
+      tabs: { query: async ({ url }: any) => url.includes('creator.') ? [{ id: 1, url: 'https://creator.xiaohongshu.com/new/home' }] : [{ id: 2, url: 'https://www.xiaohongshu.com/user/profile/6a275c1f0000000001007c00' }] },
+      scripting: { executeScript: async ({ target }: any) => [{ result: target.tabId === 1 ? { creatorAccountNumber: '27731394763', displayName: '真实账号' } : { platformAccountId: '6a275c1f0000000001007c00', number: '27731394763' } }] },
+    })
+    const submitLive = (revision: string, action = 'prepare') => api('/tasks', { executionMode: 'live', confirmation: { action, confirmedAt: new Date().toISOString(), contentRevision: revision }, targets: [{ clientTargetId: revision, computerId: executor.computerId, browserId: executor.browserId, profileId: executor.profileId, accountId: liveAccount.id, platform: 'xiaohongshu', content: { type: 'dynamic', title: '正式内容', content: '不得截断', tags: ['人工智能'], imageAssetIds: [asset.assetId] } }] })
+    const realFetch = globalThis.fetch
+    const liveReceiptTask = await submitLive('live-lost-event')
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      const response = await realFetch(url, init)
+      if (url.endsWith('/events')) throw new TypeError('lost live event response')
+      return response
+    })
+    expect((await send({ action: 'prepare' })).error).toContain('真实任务')
+    vi.stubGlobal('fetch', realFetch)
+    const liveReplay = await send({ action: 'prepare' })
+    expect(liveReplay.data.tasks.find((task: any) => task.taskId === liveReceiptTask.taskId)).toMatchObject({ counts: { needs_attention: 1 }, targets: [{ reason: { code: 'READONLY_CHECKED', stage: 'validation', causeKnown: true } }] })
+    expect(liveReplay.data.accounts.find((item: any) => item.id === liveAccount.id).bindingState).toBe('matched')
+    const liveDigestTask = await submitLive('live-digest-failure')
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => url.endsWith('/content') ? Promise.resolve(new Response('EVIL')) : realFetch(url, init))
+    const badLive = await send({ action: 'prepare' })
+    expect(badLive.data.tasks.find((task: any) => task.taskId === liveDigestTask.taskId)).toMatchObject({ counts: { needs_attention: 1 }, targets: [{ reason: { code: 'ASSET_DIGEST_MISMATCH', stage: 'download', causeKnown: true } }] })
+    vi.stubGlobal('fetch', realFetch)
+    const fillTask = await submitLive('fill-native-topics', 'fill')
+    let editorCalls = 0
+    Object.assign(globalThis.chrome.tabs, { create: async ({ url }: any) => ({ id: url.includes('/user/profile/') ? 2 : url.includes('/new/home') ? 3 : 4, url }), get: async (id: number) => ({ id, status: 'complete', url: id === 2 ? 'https://www.xiaohongshu.com/user/profile/6a275c1f0000000001007c00' : id === 3 ? 'https://creator.xiaohongshu.com/new/home' : 'https://creator.xiaohongshu.com/publish/publish' }), remove: async () => {} })
+    globalThis.chrome.scripting.executeScript = (async ({ target, args }: any) => {
+      if (target.tabId === 4) { editorCalls++; expect(args[0]).toMatchObject({ title: '正式内容', content: '不得截断', tags: ['人工智能'], images: [{ name: 'test.png', size: 4, url: 'data:image/png;base64,R09PRA==' }] }); return [{ result: { ok: true, code: 'AWAITING_PUBLISH_CONFIRMATION' } }] }
+      return [{ result: target.tabId === 2 ? { platformAccountId: '6a275c1f0000000001007c00', number: '27731394763' } : { creatorAccountNumber: '27731394763', displayName: '真实账号' } }]
+    }) as any
+    const filled = await send({ action: 'prepare' })
+    expect(filled.data.tasks.find((item: any) => item.taskId === fillTask.taskId)).toMatchObject({ counts: { needs_attention: 1 }, targets: [{ reason: { code: 'AWAITING_PUBLISH_CONFIRMATION', stage: 'preparation' } }] })
+    await send({ action: 'prepare' }); expect(editorCalls).toBe(1)
     const digestTask = await submitImage('digest')
     const originalFetch = globalThis.fetch
     vi.stubGlobal('fetch', (url: string, init?: RequestInit) => url.endsWith(`/assets/${asset.assetId}/content`) ? Promise.resolve(new Response('EVIL')) : originalFetch(url, init))

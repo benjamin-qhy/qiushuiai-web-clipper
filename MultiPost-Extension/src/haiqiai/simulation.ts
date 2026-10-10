@@ -3,7 +3,8 @@ import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
 
 export interface SimulationAttempt {
-  id: string; leaseToken: string; expiresAt: string; executionMode: string; mode?: "execute" | "reconcile";
+  videoContinuation?: { editorTabId: number; previousRunId: string; previousResultCode?: string; previousStoppedAt: string; textAlreadyFilled?: boolean; topicsInProgress?: boolean; coverAlreadyUploaded?: boolean; confirmedCoverPreviewSha256?: string; topicsAlreadyFilled?: boolean };
+  id: string; leaseToken: string; expiresAt: string; executionMode: string; action?: string; confirmation?: { finish?: string; originalAgreementAccepted?: boolean }; mode?: "execute" | "reconcile";
   target: { id: string; platform: string; accountId: string; assetIds: string[]; contentDigest: string; downloadRetryCount?: number };
 }
 export interface SimulationProgress {
@@ -14,7 +15,7 @@ export interface SimulationProgress {
 export interface TaskView {
   taskId: string; executionMode: string; createdAt: string; counts: Record<string, number>;
   targets: { id: string; clientTargetId: string; platform: string; accountId: string; state: string; stage: string; cancelRequested?: boolean; submitIntentAt?: string;
-    content: Record<string, unknown>; evidence?: { kind: string; detail: string }; reason?: { message: string; nextAction: string; stage: string; code: string } }[];
+    content: Record<string, unknown>; evidence?: { kind: string; detail: string; url?: string }; reason?: { message: string; nextAction: string; stage: string; code: string } }[];
 }
 
 class SimulationFailure extends Error {

@@ -1,3 +1,4 @@
+import { runLivePreflight, type PreflightProgress } from "./preflight";
 import { inspectRednote, type RednoteInspection } from "./rednote";
 import { runSimulation, type SimulationProgress, type TaskView } from "./simulation";
 import { message as localize } from "./i18n";
@@ -20,6 +21,7 @@ interface SavedState {
   pending?: { apiUrl: string; code: string; requestId: string; extensionVersion: string };
   connection?: { apiUrl: string; executorId: string; key: string; instanceId: string };
   simulation?: SimulationProgress;
+  preflight?: PreflightProgress;
   view: ConnectionView;
 }
 class ConnectionError extends Error {
@@ -86,6 +88,14 @@ export function registerPublishingConnection() {
     if (state.simulation.retryAt) await chrome.alarms.create(ALARM + "-retry", { when: state.simulation.retryAt });
     return refresh(state);
   };
+  const prepare = async (state: SavedState) => {
+    if (!state.connection || state.view.status !== "connected") return state.view;
+    const { apiUrl, key, executorId } = state.connection;
+    state.preflight ||= {};
+    await runLivePreflight(state.preflight, { apiUrl, key, executorId,
+      request: (path, body, id) => request(apiUrl, path, key, body, id), save: () => save(state) });
+    return refresh(state);
+  };
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (message?.type !== "HAIQIAI_PUBLISHING_CONNECTION") return;
     if (sender.id !== chrome.runtime.id || sender.url !== chrome.runtime.getURL("publish.html")) {
@@ -94,7 +104,7 @@ export function registerPublishingConnection() {
     void serialized(async () => {
       const state = await load();
       if (message.action === "inspectXiaohongshu") {
-        state.view.xiaohongshu = await inspectRednote(); await save(state); return state.view;
+        state.view.xiaohongshu = await inspectRednote(typeof message.platformAccountId === "string" ? message.platformAccountId : undefined); await save(state); return state.view;
       }
       if (message.action === "pair") {
         if (state.connection && state.view.status !== "revoked") throw new Error(localize("hqRevokeFirst"));
@@ -107,7 +117,7 @@ export function registerPublishingConnection() {
         const pending = state.pending;
         const result = await request(apiUrl, "/executors/pair", undefined, { pairingCode: pending.code, installationId: state.installationId, extensionVersion: pending.extensionVersion }, pending.requestId);
         state.connection = { apiUrl, executorId: result.executorId, key: result.key, instanceId: result.instanceId };
-        delete state.pending; delete state.simulation;
+        delete state.pending; delete state.simulation; delete state.preflight;
         state.view = { connected: true, status: "connected", apiUrl, executor: result.executor, accounts: [] };
         await save(state);
         return refresh(state);
@@ -122,16 +132,19 @@ export function registerPublishingConnection() {
         await request(state.connection.apiUrl, `/targets/${encodeURIComponent(message.targetId)}/reconcile`, state.connection.key, {});
         await simulate(state); return refresh(state);
       }
+      if (message.action === "prepare") return prepare(state);
       if (message.action === "simulate") return simulate(state);
       if (message.action === "status" || message.action === "refresh") return refresh(state);
       throw new Error(localize("hqUnsupportedAction"));
-    }).then(data => respond({ data }), error => respond({ error: error instanceof ConnectionError ? error.message : error instanceof TypeError ? localize(message.action === "pair" ? "hqInvalidEndpoint" : "hqSimulationPending") : error.message }));
+    }).then(data => respond({ data }), error => respond({ error: error instanceof ConnectionError ? error.message : error instanceof TypeError ? localize(message.action === "pair" ? "hqInvalidEndpoint" : message.action === "prepare" ? "hqLivePending" : "hqSimulationPending") : error.message }));
     return true;
   });
   const beat = () => serialized(async () => {
     const state = await load(); await refresh(state);
-    try { return await simulate(state); }
-    catch { state.view.error = localize("hqSimulationPending"); await save(state); }
+    try { await simulate(state); }
+    catch { state.view.error = localize("hqSimulationPending"); await save(state); return; }
+    try { return await prepare(state); }
+    catch { state.view.error = localize("hqLivePending"); await save(state); }
   }).catch(() => undefined);
   chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === ALARM || alarm.name === ALARM + "-retry") return beat(); });
   const schedule = () => { void chrome.alarms.create(ALARM, { periodInMinutes: 0.5 }); void beat(); };

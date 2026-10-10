@@ -1,0 +1,69 @@
+{
+  "title": "CLI、MCP、Skill怎么选",
+  "content": "CLI、MCP、Skill，经常一起出现，但解决的问题并不一样。处理本地文件和批量操作，可以考虑CLI；连接外部系统与资料，可以使用MCP；把反复用到的操作方法、步骤和输出要求整理下来，可以做成Skill。三者也能组合：通过MCP取资料，用CLI处理，再按Skill沉淀的方法输出。选工具前，先看任务需要什么。",
+  "tags": [
+    "人工智能",
+    "AI智能体",
+    "CLI",
+    "MCP",
+    "Skill"
+  ],
+  "videoDurationSeconds": 542.763,
+  "assets": [
+    {
+      "path": "/Users/qiushui/work/wojiaoqiushui/05-作品/已发布/20260724-视频-ai智能体cli-skill-mcp区别使用场景/成品-有字幕-带封面.mp4",
+      "filename": "成品-有字幕-带封面.mp4",
+      "sizeBytes": 27282785,
+      "sha256": "646126394e2ef4db93871582ee4c1534a54b3cd6f11cf31a15b3b9177a4e5fa0"
+    },
+    {
+      "path": "/Users/qiushui/work/wojiaoqiushui/05-作品/已发布/20260724-视频-ai智能体cli-skill-mcp区别使用场景/封面-横版-16x9.png",
+      "filename": "封面-横版-16x9.png",
+      "sizeBytes": 1742978,
+      "sha256": "d56ba133d253f74ffb2c82e7f27f81af33c95432cee5b30b42996901e49fb2de"
+    },
+    {
+      "path": "/Users/qiushui/work/wojiaoqiushui/05-作品/已发布/20260724-视频-ai智能体cli-skill-mcp区别使用场景/封面-竖版-9x16.png",
+      "filename": "封面-竖版-9x16.png",
+      "sizeBytes": 1940513,
+      "sha256": "6070e6cbdb2db8c00ebf26da27ebc1e3bdacd196c4734830f389b082c3e90270"
+    },
+    {
+      "path": "/Users/qiushui/work/wojiaoqiushui/05-作品/已发布/20260724-视频-ai智能体cli-skill-mcp区别使用场景/01-到底该用哪个-配图.png",
+      "filename": "01-到底该用哪个-配图.png",
+      "sizeBytes": 932419,
+      "sha256": "6b30dad190b8a2753071dc0d25dd67e8b0610e86d762ef9d34b48683ad28e5bd"
+    },
+    {
+      "path": "/Users/qiushui/work/wojiaoqiushui/05-作品/已发布/20260724-视频-ai智能体cli-skill-mcp区别使用场景/02-CLI处理本地-配图.png",
+      "filename": "02-CLI处理本地-配图.png",
+      "sizeBytes": 1017925,
+      "sha256": "970b07962bd52e7f80b45e7cd35bb03c97017f64d2cdf35d3b44723669b83e25"
+    },
+    {
+      "path": "/Users/qiushui/work/wojiaoqiushui/05-作品/已发布/20260724-视频-ai智能体cli-skill-mcp区别使用场景/03-别付说明书成本-配图.png",
+      "filename": "03-别付说明书成本-配图.png",
+      "sizeBytes": 1083473,
+      "sha256": "b1d875e03d729efa9f35ac51a21d304c129f6b2461a27fda5e5827083489b181"
+    },
+    {
+      "path": "/Users/qiushui/work/wojiaoqiushui/05-作品/已发布/20260724-视频-ai智能体cli-skill-mcp区别使用场景/04-MCP连接系统-配图.png",
+      "filename": "04-MCP连接系统-配图.png",
+      "sizeBytes": 1141151,
+      "sha256": "1a396b67f548f9d568f52b412eedf7d07e0093f846a964b71d4c8a45805f4ba3"
+    },
+    {
+      "path": "/Users/qiushui/work/wojiaoqiushui/05-作品/已发布/20260724-视频-ai智能体cli-skill-mcp区别使用场景/05-Skill沉淀方法-配图.png",
+      "filename": "05-Skill沉淀方法-配图.png",
+      "sizeBytes": 1036099,
+      "sha256": "623fe94d057dccbd6cea45a33ae893666c5217d0b13db9faebda9e9c982976e3"
+    },
+    {
+      "path": "/Users/qiushui/work/wojiaoqiushui/05-作品/已发布/20260724-视频-ai智能体cli-skill-mcp区别使用场景/06-三者组合使用-配图.png",
+      "filename": "06-三者组合使用-配图.png",
+      "sizeBytes": 1076998,
+      "sha256": "8843d4bd8c0407b12ac8c9b64e17eb943987c720edea0d137e0d02ce12170c5d"
+    }
+  ],
+  "authorization": "用户2026-10-09指定正式素材并授权补充缺失文案；小红书视频正式发布，其他平台开发测试。横竖封面、合集和原创必须作为可选参数，不得静默忽略。"
+}

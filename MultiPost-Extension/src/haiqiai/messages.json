@@ -21,7 +21,7 @@
     "message": "连接失败，请稍后重试"
   },
   "hqConnectionScope": {
-    "message": "当前只执行模拟任务。模拟草稿不是平台草稿，也不代表已发布。"
+    "message": "支持模拟任务和小红书参数化填写、暂存、提交；真实平台验收状态以测试记录为准。"
   },
   "hqApiUrl": {
     "message": "API 地址"
@@ -234,12 +234,286 @@
     "message": "无法读取小红书页面，请检查页面是否已关闭或刷新。"
   },
   "hqXhsUnverified": {
-    "message": "本次检查仅读取页面，不执行上传或发布。稳定账号ID尚未核对，自动发布仍未开放。"
+    "message": "本次未能交叉核对指定主页 ID 与创作账号，请保持创作首页和目标个人主页打开；未上传或发布。"
   },
   "hqXhsObservedName": {
     "message": "页面显示昵称"
   },
   "hqXhsObservedNumber": {
     "message": "页面显示小红书账号"
+  },
+  "hqXhsIdentityMatched": {
+    "message": "账号主页 ID 与创作后台小红书号一致（本次只读核对，不代表已发布）"
+  },
+  "hqXhsIdentityMismatch": {
+    "message": "指定主页的小红书号与当前创作账号不同，已停止任务，请核对账号"
+  },
+  "hqLiveAccountAction": {
+    "message": "请打开指定账号的个人主页和创作后台首页，再核对账号后恢复任务。"
+  },
+  "hqLiveAssetFailure": {
+    "message": "账号或素材核对未通过，未上传或发布；具体原因见原因代码。"
+  },
+  "hqLiveCheckInterrupted": {
+    "message": "本次准备检查中断，未上传或发布。"
+  },
+  "hqLiveRetryAction": {
+    "message": "检查连接、账号或素材后，通过 Skill 恢复原任务。"
+  },
+  "hqRunPreparation": {
+    "message": "检查真实任务"
+  },
+  "hqLiveTask": {
+    "message": "真实准备任务（不发布）"
+  },
+  "hqLivePending": {
+    "message": "真实任务预检中断，已保留执行记录，请恢复连接后继续核对。"
+  },
+  "hqFillReady": {
+    "message": "图片、标题、正文和话题已填好并核对预览，等待发布确认。"
+  },
+  "hqFillFailed": {
+    "message": "填写未能全部确认，请查看原编辑页面。"
+  },
+  "hqFillInterrupted": {
+    "message": "填写过程中连接中断，页面可能已有部分内容；未点击发布。"
+  },
+  "hqFillReview": {
+    "message": "检查原编辑页面，不要重新上传；确认完整内容后再决定发布。"
+  },
+  "hqLiveReadonlyChecked": {
+    "message": "账号和素材只读检查通过，尚未上传填写。"
+  },
+  "hqLiveFillAction": {
+    "message": "确认上传填写后，由 Skill 提交 fill 任务。"
+  },
+  "hqStagePreparation": {
+    "message": "上传填写"
+  },
+  "hqFillReasonTOPIC_NOT_FOUND": {
+    "message": "未找到完全同名的话题，已停止填写。"
+  },
+  "hqFillReasonTOPIC_AMBIGUOUS": {
+    "message": "找到多个同名话题，无法确定该选哪一个。"
+  },
+  "hqFillReasonTOPIC_UNCONFIRMED": {
+    "message": "已选择话题，但页面未显示正确标签。"
+  },
+  "hqFillReasonTOPIC_WRITE_FAILED": {
+    "message": "话题名称未能写入编辑器。"
+  },
+  "hqFillReasonCONTENT_TOO_LONG": {
+    "message": "标题超过页面允许的长度，未截断内容。"
+  },
+  "hqFillReasonCONTENT_MISMATCH": {
+    "message": "页面标题或正文与确认内容不一致。"
+  },
+  "hqFillReasonCONTENT_WRITE_FAILED": {
+    "message": "正文未能写入编辑器。"
+  },
+  "hqFillReasonEDITOR_NOT_EMPTY": {
+    "message": "编辑页已有内容，为避免覆盖已停止。"
+  },
+  "hqFillReasonPAGE_NOT_READY": {
+    "message": "当前页面不是预期编辑页。"
+  },
+  "hqFillReasonPREPARATION_EXPIRED": {
+    "message": "填写已超时或被停止，请检查原页面。"
+  },
+  "hqFillReasonPREPARATION_ALREADY_STARTED": {
+    "message": "这个页面已执行过填写，已阻止重复上传。"
+  },
+  "hqFillReasonINVALID_CONTENT": {
+    "message": "图片数量或话题格式不符合当前支持范围。"
+  },
+  "hqFillReasonINVALID_IMAGE": {
+    "message": "图片不是支持的 PNG、JPEG 或 WebP 格式。"
+  },
+  "hqFillReasonASSET_SIZE_MISMATCH": {
+    "message": "图片实际大小与素材记录不同。"
+  },
+  "hqFillReasonASSET_TRANSPORT_LIMIT": {
+    "message": "图片总大小超过当前32 MiB传输限制。"
+  },
+  "hqFillReasonIMAGE_UPLOAD_UNCONFIRMED": {
+    "message": "尚未确认所有图片上传并显示完成。"
+  },
+  "hqFillReasonIMAGE_ORDER_UNCONFIRMED": {
+    "message": "页面图片与原素材顺序未能核对，可能发生压缩或重排。"
+  },
+  "hqFillReasonPREVIEW_MISMATCH": {
+    "message": "手机预览与确认内容不一致，不能确认填写完成。"
+  },
+  "hqFillReasonPREPARATION_INTERRUPTED": {
+    "message": "填写中断，页面可能已有部分内容。"
+  },
+  "hqFillReasonCOLLECTION_CONTROL_MISSING": {
+    "message": "未找到合集选择入口。"
+  },
+  "hqFillReasonCOLLECTION_NOT_FOUND": {
+    "message": "没有找到名称完全一致的合集，未选择其他合集。"
+  },
+  "hqFillReasonCOLLECTION_AMBIGUOUS": {
+    "message": "存在多个同名合集，无法确定目标，未选择。"
+  },
+  "hqFillReasonCOLLECTION_UNCONFIRMED": {
+    "message": "未能确认页面已选中指定合集。"
+  },
+  "hqFillReasonORIGINAL_CONTROL_MISSING": {
+    "message": "未找到原创声明开关。"
+  },
+  "hqFillReasonORIGINAL_AGREEMENT_REQUIRED": {
+    "message": "平台要求阅读并同意原创声明须知，请在原页面确认；尚未完成原创声明。"
+  },
+  "hqFillReasonORIGINAL_UNCONFIRMED": {
+    "message": "未能确认原创声明开关与任务要求一致。"
+  },
+  "hqCollectionName": {
+    "message": "合集"
+  },
+  "hqDeclareOriginal": {
+    "message": "声明原创"
+  },
+  "hqYes": {
+    "message": "是"
+  },
+  "hqNo": {
+    "message": "否"
+  },
+  "hqFillReasonASSET_NOT_READY": {
+    "message": "素材尚未完整上传到发布服务。"
+  },
+  "hqFillReasonASSET_DOWNLOAD_FAILED": {
+    "message": "无法从发布服务下载素材。"
+  },
+  "hqFillReasonASSET_DIGEST_MISMATCH": {
+    "message": "下载的图片与原素材摘要不同，已停止。"
+  },
+  "hqFillReasonACCOUNT_NOT_FOUND": {
+    "message": "任务指定的账号记录不存在。"
+  },
+  "hqFillReasonACCOUNT_UNVERIFIED": {
+    "message": "当前页面不足以核对指定账号，请保持正确个人主页打开。"
+  },
+  "hqFillReasonACCOUNT_MISMATCH": {
+    "message": "当前创作账号与任务指定账号不同，已停止。"
+  },
+  "hqFillReasonLOGIN_REQUIRED": {
+    "message": "小红书创作平台需要重新登录。"
+  },
+  "hqDraftSaved": {
+    "message": "已存草稿（当前浏览器本地）"
+  },
+  "hqSubmitted": {
+    "message": "已提交／审核中"
+  },
+  "hqPublished": {
+    "message": "已发布"
+  },
+  "hqFillReasonORIGINAL_AGREEMENT_CHANGED": {
+    "message": "原创须知与已支持的版本不同，需要重新查看确认。"
+  },
+  "hqFillReasonFINISH_IN_PROGRESS": {
+    "message": "原页面动作已开始，尚未取得结果；不要再次点击。"
+  },
+  "hqFillReasonRESULT_NOT_FOUND": {
+    "message": "暂未找到可核对的作品记录；不能据此断定失败或审核中，请稍后只读核对。"
+  },
+  "hqFillReasonPREPARATION_UNVERIFIED": {
+    "message": "该编辑页尚未完整核对内容。"
+  },
+  "hqFillReasonCONTENT_CHANGED": {
+    "message": "页面内容或设置与刚核对的版本不同，未点击完成按钮。"
+  },
+  "hqFillReasonINVALID_FINISH": {
+    "message": "未授权的完成动作。"
+  },
+  "hqFillReasonFINISH_EXPIRED": {
+    "message": "完成授权已过期，未点击按钮。"
+  },
+  "hqFillReasonFINISH_INTERRUPTED": {
+    "message": "完成操作中断，是否成功尚未确认；不要自动重试。"
+  },
+  "hqFillReasonFINISH_CONTROL_MISSING": {
+    "message": "未找到唯一可用的完成按钮。"
+  },
+  "hqFillReasonRESULT_UNCONFIRMED": {
+    "message": "已点击完成按钮，但未得到明确成功结果；不要自动重试。"
+  },
+  "hqFillReasonDRAFT_SAVED": {
+    "message": "平台显示保存成功并离开编辑器；草稿保存在当前浏览器本地。"
+  },
+  "hqFillReasonSUBMITTED": {
+    "message": "平台显示发布成功；尚未核对公开作品，只确认已提交。"
+  },
+  "hqFillReasonRESULT_PAGE_UNAVAILABLE": {
+    "message": "原编辑页已关闭或无法读取，无法确认结果；不要重新提交。"
+  },
+  "hqFillReasonPUBLISHED_CONFIRMED": {
+    "message": "已核对后台发布时间、作品ID及公开详情的作者、正文、话题和图片数量，确认已发布。"
+  },
+  "hqFillReasonRESULT_AMBIGUOUS": {
+    "message": "发现多条符合标题与提交时间的作品，无法确定本次对应哪条；请人工核对。"
+  },
+  "hqFillReasonRESULT_CONTENT_MISMATCH": {
+    "message": "作品详情的作者或内容与任务不符，不能确认对应本次发布。"
+  },
+  "hqFillReasonPLATFORM_REJECTED": {
+    "message": "平台作品记录明确显示未通过，页面未提供更具体原因；请打开原作品查看，不自动重发。"
+  },
+  "hqFillReasonPLATFORM_REVIEWING": {
+    "message": "平台作品记录明确显示审核中，请稍后只读核对。"
+  },
+  "hqViewPublishedNote": {
+    "message": "查看作品"
+  },
+  "hqFillReasonVIDEO_COVER_CONTROL_UNVERIFIED": {
+    "message": "未找到唯一且对应所选横竖类型的封面上传控件，已保留原页面，不忽略封面继续发布。"
+  },
+  "hqFillReasonVIDEO_UPLOAD_UNCONFIRMED": {
+    "message": "未确认视频上传完成，已停止，请检查原编辑页。"
+  },
+  "hqFillReasonVIDEO_PREVIEW_FETCH_FAILED": { "message": "读取视频预览地址失败；已保留原页面，尚未填写内容。" },
+  "hqFillReasonVIDEO_PREVIEW_BODY_FAILED": { "message": "读取视频预览响应失败；已保留原页面，尚未填写内容。" },
+  "hqFillReasonVIDEO_PREVIEW_BYTES_FAILED": { "message": "读取视频预览文件内容失败；已保留原页面，尚未填写内容。" },
+  "hqFillReasonVIDEO_PREVIEW_HASH_FAILED": { "message": "计算视频预览摘要失败；已保留原页面，尚未填写内容。" },
+  "hqFillReasonVIDEO_IDENTITY_UNCONFIRMED": {
+    "message": "无法确认预览视频与上传原文件一致，已停止。"
+  },
+  "hqFillReasonMEDIA_NOT_READY": {
+    "message": "视频分块未完整校验，未开始上传。"
+  },
+  "hqFillReasonMEDIA_ORDER_MISMATCH": {
+    "message": "视频分块顺序不一致，未开始上传。"
+  },
+  "hqFillReasonMEDIA_TRANSFER_INTERRUPTED": {
+    "message": "视频传输中断，未重复上传。"
+  },
+  "hqFillReasonINVALID_VIDEO": {
+    "message": "当前视频传输仅支持128 MiB以内MP4。"
+  },
+  "hqFillReasonCOVER_AMBIGUOUS": {
+    "message": "封面选择区域不唯一，已停止，请检查原页面。"
+  },
+  "hqFillReasonCOVER_UPLOAD_UNCONFIRMED": {
+    "message": "未确认指定封面上传完成，已停止。"
+  },
+  "hqFillReasonCOVER_IDENTITY_UNCONFIRMED": {
+    "message": "封面预览与原文件无法核对，可能发生了裁切或重新编码，已停止。"
+  },
+  "hqFillReasonCOVER_CONFIRM_UNVERIFIED": {
+    "message": "未确认封面设置保留在作品中，已停止。"
+  },
+  "hqPlatformAccountMatched": {
+    "message": "已核对当前创作账号标识。"
+  },
+  "hqPlatformAccountUnverified": {
+    "message": "未取得与任务一致的账号标识，未进行填写。"
+  },
+  "hqFillReasonPOSTING_IDENTITY_UNVERIFIED": {
+    "message": "脉脉当前显示匿名发帖身份，无法确认以目标实名账号发布，已停止。"
+  },
+  "hqFillReasonCONTINUATION_UNVERIFIED": {
+    "message": "原编辑页的旧执行停止记录缺失或不符，已停止接续，请检查原页面。"
   }
 }

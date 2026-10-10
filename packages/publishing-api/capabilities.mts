@@ -1,7 +1,7 @@
 // Scope from decisions #22/#27. Existing upstream scripts are not yet verified adapters.
 const scope: Record<string, string[]> = {
   weixin: ['article', 'dynamic'], weixinchannel: ['dynamic', 'video'],
-  xiaohongshu: ['dynamic', 'video'], douyin: ['dynamic', 'video'], tiktok: ['video'],
+  x: ['dynamic'], xiaohongshu: ['dynamic', 'video'], douyin: ['dynamic', 'video'], tiktok: ['video'],
   weibo: ['dynamic', 'article', 'video'], youtube: ['video'], okjike: ['dynamic', 'video'],
   toutiao: ['article', 'dynamic', 'video'], linkedin: ['dynamic'], maimai: ['dynamic'],
   zsxq: ['dynamic', 'article'], medium: ['article'],

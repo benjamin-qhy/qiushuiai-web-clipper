@@ -1,7 +1,9 @@
 import { message } from "./i18n";
 
 export interface RednoteInspection {
-  status: "needs_attention";
+  status: "needs_attention" | "matched";
+  platformAccountId?: string;
+  profileAccountNumber?: string;
   code: string;
   message: string;
   displayName?: string;
@@ -26,8 +28,20 @@ export function inspectRednotePage() {
   };
 }
 
-export async function inspectRednote(): Promise<RednoteInspection> {
-  const tabs = await chrome.tabs.query({ url: "https://creator.xiaohongshu.com/*" });
+// This checks the public profile's current unique handle against the logged-in creator home.
+// A nickname alone or the consumer site's logged-in account never proves creator identity.
+export function inspectRednoteProfile() {
+  if (location.origin !== "https://www.xiaohongshu.com" || !/^\/user\/profile\/[a-f0-9]{24}\/?$/.test(location.pathname)) return null;
+  const numbers = Array.from(document.querySelectorAll('.user-redId'))
+    .map(element => element.textContent?.trim().match(/^小红书号[:：]\s*(\S+)$/)?.[1]).filter(Boolean);
+  return numbers.length === 1 ? { platformAccountId: location.pathname.split('/')[3], number: numbers[0] } : null;
+}
+
+export async function inspectRednote(expectedId?: string, creatorTabId?: number, profileTabId?: number): Promise<RednoteInspection> {
+  let tabs = await chrome.tabs.query({ url: "https://creator.xiaohongshu.com/*" });
+  if (creatorTabId !== undefined) tabs = [await chrome.tabs.get(creatorTabId)];
+  const homes = tabs.filter(tab => { try { return new URL(tab.url || "").pathname === "/new/home"; } catch { return false; } });
+  if (homes.length === 1) tabs = homes;
   if (tabs.length !== 1 || !tabs[0].id) return { status: "needs_attention", code: tabs.length ? "AMBIGUOUS_PAGE" : "PAGE_REQUIRED", message: message(tabs.length ? "hqXhsMultiplePages" : "hqXhsOpenPage") };
   const tab = tabs[0];
   const url = new URL(tab.url || "about:blank");
@@ -36,6 +50,17 @@ export async function inspectRednote(): Promise<RednoteInspection> {
   const results = await chrome.scripting.executeScript({ target: { tabId: tab.id! }, world: "ISOLATED", func: inspectRednotePage });
   const observed = results[0]?.result;
   if (!observed) return { status: "needs_attention", code: "PAGE_UNAVAILABLE", message: message("hqXhsUnavailable") };
-  // Creator account numbers are observations, not the stable platform user ID required for execution.
+  if (expectedId && /^[a-f0-9]{24}$/.test(expectedId) && observed.creatorAccountNumber) {
+    const profiles = (profileTabId !== undefined ? [await chrome.tabs.get(profileTabId)] : await chrome.tabs.query({ url: "https://www.xiaohongshu.com/user/profile/*" }))
+      .filter(tab => { try { return new URL(tab.url || "").pathname.replace(/\/$/, "") === `/user/profile/${expectedId}`; } catch { return false; } });
+    if (profiles.length === 1 && profiles[0].id) {
+      const profile = (await chrome.scripting.executeScript({ target: { tabId: profiles[0].id }, world: "ISOLATED", func: inspectRednoteProfile }))[0]?.result;
+      if (profile?.platformAccountId === expectedId && profile.number) {
+        const matched = profile.number === observed.creatorAccountNumber;
+        return { ...observed, profileAccountNumber: profile.number, ...(matched ? { platformAccountId: expectedId } : {}), status: matched ? "matched" : "needs_attention", code: matched ? "ACCOUNT_MATCHED" : "ACCOUNT_MISMATCH", message: message(matched ? "hqXhsIdentityMatched" : "hqXhsIdentityMismatch") };
+      }
+    }
+  }
+  // Missing public profile evidence remains unverified, never matched by nickname.
   return { ...observed, status: "needs_attention", code: "ACCOUNT_UNVERIFIED", message: message("hqXhsUnverified") };
 }

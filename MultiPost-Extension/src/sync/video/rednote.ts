@@ -106,10 +106,10 @@ export async function VideoRednote(data: SyncData) {
   // 辅助函数：上传封面
   async function uploadCover(coverFile: NonNullable<VideoData["cover"]>) {
     console.debug("tryCover", coverFile);
-    const coverUploadTrigger = document.querySelector("div.noCover.uploadCover") as HTMLElement;
+    const coverUploadTrigger = document.querySelector(".cover-edit-entry, div.noCover.uploadCover") as HTMLElement;
     console.debug("coverUpload", coverUploadTrigger);
     if (!coverUploadTrigger) {
-      console.error("未找到封面上传触发器: div.noCover.uploadCover");
+      console.error("未找到封面上传入口");
       return;
     }
     coverUploadTrigger.click();
@@ -156,9 +156,14 @@ export async function VideoRednote(data: SyncData) {
     console.debug("文件上传操作触发");
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    const doneButtons = document.querySelectorAll("span");
+    // The current editor uploads into a candidate list; select that image before confirming.
+    const uploaded = await waitForElement('button.uploaded-thumbnail img[alt="已上传封面"]');
+    const choices = document.querySelectorAll<HTMLButtonElement>('button.uploaded-thumbnail');
+    if (choices.length !== 1 || !choices[0].contains(uploaded)) throw new Error("COVER_AMBIGUOUS");
+    choices[0].click();
+    const doneButtons = document.querySelectorAll("button");
     console.debug("doneButtons", doneButtons);
-    const doneButton = Array.from(doneButtons).find((btn) => btn.textContent?.trim() === "确定");
+    const doneButton = Array.from(doneButtons).find((btn) => ["完成", "确定"].includes(btn.textContent?.trim() || ""));
     console.debug("doneButton", doneButton);
     if (doneButton) {
       (doneButton as HTMLElement).click();
