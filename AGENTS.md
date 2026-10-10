@@ -67,9 +67,9 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 
 代码变更与文档必须在同一次任务内保持一致，不得留待事后补充。
 
-- 新增、删除、重命名文件或模块后，立即更新 `CLAUDE.md` 中对应的描述（入口文件、核心模块、类型、图片模式等章节）。
-- 修改关键行为（消息类型、滚动参数、签名算法、存储字段等）后，立即更新 `CLAUDE.md` 中涉及该行为的描述。
-- `CLAUDE.md` 与 `AGENTS.md` 内容必须完全相同。任何一方发生修改，必须将完整内容同步覆盖到另一方，确保两个文件始终一致。
+- 新增、删除、重命名文件或模块后，立即更新 `AGENTS.md` 中对应的描述（入口文件、核心模块、类型、图片模式等章节）。
+- 修改关键行为（消息类型、滚动参数、签名算法、存储字段等）后，立即更新 `AGENTS.md` 中涉及该行为的描述。
+- `AGENTS.md` 是本仓库根目录唯一维护的项目指令文件；文档更新与相关代码变更在同一次任务内完成。
 
 ---
 
@@ -117,7 +117,7 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - 任务接口、结果状态及恢复规则见[发布接口决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/24)：需人工处理、失败和结果未知必须说明原因、阶段与处理建议；提交后的未知结果仅核对、不自动重发。连接、发现及模拟任务的状态/恢复已实现；真实平台证据及页面恢复仍待逐平台验收。
 - 已确认职责与素材/授权边界见[整合架构决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/23)：Skill 提交并查询，API 保存素材与任务，MultiPost 执行并回报；素材先上传所选 API，各端使用独立可撤销密钥，平台 Cookie 留在浏览器。连接授权已实现；素材与模拟任务传递已实现；真实发布待实现。
 - 首版仅覆盖已定 13 平台中 MultiPost 已有的发布类型，尚无适配的类型暂不新增；完整范围见[首版发布类型决策](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/22)。已有脚本仍需补齐流程和结果确认，不能视为已验收。
-- 发布目标规则已确定：Skill 指定平台、账号和电脑，浏览器与用户配置允许省略并使用预设默认值，最终定位独立扩展安装；细则见规划地图中的「发布授权、账号与运行环境边界」，术语见 `CONTEXT.md`。默认解析预检已实现；模拟任务入队已固定安装；真实填写前账号复核已实现。
+- 发布目标规则已确定：Skill 指定平台、账号和电脑，浏览器与用户配置允许省略并使用预设默认值，最终定位独立扩展安装；细则见规划地图中的「发布授权、账号与运行环境边界」，术语见 `GLOSSARY.md`。默认解析预检已实现；模拟任务入队已固定安装；真实填写前账号复核已实现。
 - 已确认整合方向：剪藏保留现有 Vue 架构；发布保留 MultiPost 的 React 页面、平台脚本和模块结构并继续开发。计划由 WXT 统一构建一个扩展，统一配置与后台入口，业务模块、消息及设置分开组织；Plasmo 专属部分按需适配。双框架入口已接入，连接后台与发现API已接入，模拟任务执行已接入，模拟故障恢复已接入，真实任务只读预检已接入，上传填写已接入，最终动作代码待实机验收。
 - 已确定目标：复用 MultiPost 能力并整合进当前剪藏扩展，最终为一个扩展；当前子目录独立构建只是引入现状。规划与决策见 [多平台发布规划地图](https://github.com/benjamin-qhy/qiushuiai-web-clipper/issues/17)，涉及发布范围、接口或验收时先读取该地图及相关子议题。
 - 上游为 `https://github.com/leaperone/MultiPost-Extension`，引入提交为 `9e9138831b7a3c782d9010f7dfd1ae6d474ebe11`；保留上游 LICENSE 和 README，不复制嵌套 Git 仓库。
@@ -250,7 +250,7 @@ Uses the default five canonical triage labels. See `docs/agents/triage-labels.md
 ### Domain docs
 
 Uses a single-context domain-document layout. See `docs/agents/domain.md`.
-Project vocabulary is maintained in `CONTEXT.md`.
+Project vocabulary is maintained in `GLOSSARY.md`.
 
 MultiPost 的平台入口回归测试位于 `MultiPost-Extension/tests/`，由根目录 `pnpm exec vitest run` 一并执行；它们继续使用子项目类型配置，不进入根项目类型检查。
 
