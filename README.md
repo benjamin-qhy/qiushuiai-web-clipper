@@ -1,6 +1,6 @@
-# 海奇AI浏览器扩展
+# clip publish
 
-海奇AI（HaiqiAI）将网页、飞书文档和金山文档保存为 Obsidian Markdown 笔记，并整合 API 驱动的内容发布。仓库与包名为 `haiqiai-browser-extension`，浏览器扩展显示名称为“海奇AI”。
+clip publish：在一个浏览器扩展中剪藏内容、保存笔记，并发布到已接入的平台。仓库与包名为 `qiushui-clip-publish`，浏览器扩展显示名称为“clip publish”。本地目录当前仍为 `haiqiai-browser-extension`。
 
 ## 当前功能
 
@@ -43,4 +43,4 @@ Chrome 打开 `chrome://extensions/`，开启开发者模式，加载 `.output/c
 - [使用说明](docs/wiki.md)：剪藏、Get 笔记与发布入口。
 - [术语表](GLOSSARY.md)与 [项目规则](AGENTS.md)。
 
-GitHub：[benjamin-qhy/haiqiai-browser-extension](https://github.com/benjamin-qhy/haiqiai-browser-extension)。更新检查暂沿用既有服务端路径 `http://version.qiushui.me/qiushuiai-web-clipper.json`，仓库改名不代表该外部接口已迁移。
+GitHub：[benjamin-qhy/qiushui-clip-publish](https://github.com/benjamin-qhy/qiushui-clip-publish)。更新检查暂沿用既有服务端路径 `http://version.qiushui.me/qiushuiai-web-clipper.json`，仓库改名不代表该外部接口已迁移。

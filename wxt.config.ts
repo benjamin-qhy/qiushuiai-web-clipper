@@ -34,8 +34,8 @@ export default defineConfig({
   },
   manifest: {
     default_locale: 'zh_CN',
-    name: '海奇AI',
-    description: '海奇AI — 网页剪藏、Obsidian 笔记与 API 驱动的内容发布',
+    name: 'clip publish',
+    description: 'clip publish：在一个浏览器扩展中剪藏内容、保存笔记，并发布到已接入的平台。',
     permissions: ['storage', 'activeTab', 'scripting', 'tabs', 'sidePanel', 'alarms'],
     host_permissions: [
       '*://*.feishu.cn/*',

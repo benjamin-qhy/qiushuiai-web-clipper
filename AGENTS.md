@@ -75,7 +75,7 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 
 ## 项目简介
 
-项目名称为 **海奇AI浏览器扩展**，英文 **HaiqiAI Browser Extension**。GitHub 仓库、本地目录和根包名为 `haiqiai-browser-extension`；对外发布的扩展显示名称为 **海奇AI**。当前架构见 `docs/architecture.md`，文档入口见 `docs/README.md`。
+项目名称与扩展显示名称为 **clip publish**。GitHub 仓库和根包名为 `qiushui-clip-publish`；本地目录当前为 `haiqiai-browser-extension`。当前架构见 `docs/architecture.md`，文档入口见 `docs/README.md`。
 
 网页剪藏浏览器扩展（Chrome/Firefox），支持将以下来源一键提取为 Obsidian Markdown 笔记：
 
@@ -109,17 +109,17 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - 发布连接后台 `MultiPost-Extension/src/haiqiai/connection.ts` 通过独立 `HAIQIAI_PUBLISHING_CONNECTION` 消息处理配对/查询；仅信任发布页调用，密钥保存在限制为可信扩展上下文的 local 存储，不回传页面消息。30秒 alarm 心跳，离线/撤销明确显示，Firefox不启动该后台。
 - `skills/haiqiai-publishing/SKILL.md` 是随仓库交付的发布 Skill：按内容类型调用 dynamic/video/article 接口，支持单次提交、多平台分组及有预算的原页接续；`references/requests.md` 定义参数映射与幂等调用，`references/recovery.md` 定义状态、接续白名单和结果证据。所有平台写操作均由 API 触发浏览器扩展；使用专用 Skill 凭据，运行回执存 `.haiqiai-publishing/skill-runs/`，不自动安装到全局技能目录。
 - `packages/publishing-api/` 为独立 Node 24 + SQLite 发布 API；当前实现管理配对、分权密钥、发现、账号登记/观测、心跳、默认配置及目标预检，已新增素材流式上传校验及模拟任务提交/领取/事件查询；模拟恢复协议已接入，真实任务只读预检已接入，上传填写已接入，小红书图文最终动作及结果核对已有实机验收，视频与其他平台按交接记录限定范围。`server.mts` 提供服务，`admin.mts` 为本机/远程管理及 Skill 请求入口，`upload.mts` 流式上传并保存可重试回执，`capabilities.mts` 将首版范围标为未验证；`assets.mts` 管理完整性校验，`tasks.mts` 管理任务快照/租约/证据，`recovery.mts` 管理提交意图、取消、旧执行停止确认、有限恢复和只读核对，`targets.mts` 共用目标解析，`model.mts`/`protocol.mts` 定义持久化类型和协议辅助。运行数据和凭据默认存 `.haiqiai-publishing/`（不入库）。
-- 正在实施规格与19项开发任务，见[开发规格](https://github.com/benjamin-qhy/haiqiai-browser-extension/issues/27)。开发及测试范围已获用户授权；部署和真实发布仍须对应授权。
+- 正在实施规格与19项开发任务，见[开发规格](https://github.com/benjamin-qhy/qiushui-clip-publish/issues/27)。开发及测试范围已获用户授权；部署和真实发布仍须对应授权。
 - `entrypoints/publish/` 是WXT托管的React发布入口；`MultiPost-Extension/src/haiqiai/` 使用原MultiPost的React/HeroUI体系承载本地界面及独立样式/文案。已接入配对、连接状态、账号及模拟任务列表；`simulation.ts` 仅流式核对素材并回传模拟草稿，`i18n.ts` 共用本地化文案；`rednote.ts` 只读检查当前浏览器的小红书创作页，可将指定主页稳定ID对应的小红书号与创作首页账号号交叉核对，不以昵称判定身份；上游 `src/sync/dynamic/rednote.ts` 已拆掉无提交授权的自动点击，改为严格准备入口，尚未接入真实任务或验收上传结果；真实公开发布尚未验收；上游官方服务器入口不载入整合包。
 - Chrome/Edge弹窗与设置页可进入发布工作台；Firefox保持剪藏，不构建发布页。仅显式引入的发布模块参与根构建，未迁入的上游源码不自动加载。
-- 发布系统规划已确认，实施顺序与验收见[开发验收决策](https://github.com/benjamin-qhy/haiqiai-browser-extension/issues/25)。用户明确要求开始前确认：实际开发、部署或真实发布须先获得对应范围的明确授权；采用规划不代表授权开工。已获授权的范围不重复询问。
-- 内容字段与平台映射见[发布内容决策](https://github.com/benjamin-qhy/haiqiai-browser-extension/issues/26)：Skill 提交确认后的各平台内容，扩展不自动改写、截断或删减；超限和缺项须明确报错。MultiPost 既有静默截断行为仍待整改，不能视为已符合此规则。
-- 任务接口、结果状态及恢复规则见[发布接口决策](https://github.com/benjamin-qhy/haiqiai-browser-extension/issues/24)：需人工处理、失败和结果未知必须说明原因、阶段与处理建议；提交后的未知结果仅核对、不自动重发。连接、发现及模拟任务的状态/恢复已实现；真实平台证据及页面恢复仍待逐平台验收。
-- 已确认职责与素材/授权边界见[整合架构决策](https://github.com/benjamin-qhy/haiqiai-browser-extension/issues/23)：Skill 提交并查询，API 保存素材与任务，MultiPost 执行并回报；素材先上传所选 API，各端使用独立可撤销密钥，平台 Cookie 留在浏览器。连接授权已实现；素材与模拟任务传递已实现；小红书图文真实发布及结果核对已有实机验收，其他范围见当前交接。
-- 首版仅覆盖已定 13 平台中 MultiPost 已有的发布类型，尚无适配的类型暂不新增；完整范围见[首版发布类型决策](https://github.com/benjamin-qhy/haiqiai-browser-extension/issues/22)。已有脚本仍需补齐流程和结果确认，不能视为已验收。
+- 发布系统规划已确认，实施顺序与验收见[开发验收决策](https://github.com/benjamin-qhy/qiushui-clip-publish/issues/25)。用户明确要求开始前确认：实际开发、部署或真实发布须先获得对应范围的明确授权；采用规划不代表授权开工。已获授权的范围不重复询问。
+- 内容字段与平台映射见[发布内容决策](https://github.com/benjamin-qhy/qiushui-clip-publish/issues/26)：Skill 提交确认后的各平台内容，扩展不自动改写、截断或删减；超限和缺项须明确报错。MultiPost 既有静默截断行为仍待整改，不能视为已符合此规则。
+- 任务接口、结果状态及恢复规则见[发布接口决策](https://github.com/benjamin-qhy/qiushui-clip-publish/issues/24)：需人工处理、失败和结果未知必须说明原因、阶段与处理建议；提交后的未知结果仅核对、不自动重发。连接、发现及模拟任务的状态/恢复已实现；真实平台证据及页面恢复仍待逐平台验收。
+- 已确认职责与素材/授权边界见[整合架构决策](https://github.com/benjamin-qhy/qiushui-clip-publish/issues/23)：Skill 提交并查询，API 保存素材与任务，MultiPost 执行并回报；素材先上传所选 API，各端使用独立可撤销密钥，平台 Cookie 留在浏览器。连接授权已实现；素材与模拟任务传递已实现；小红书图文真实发布及结果核对已有实机验收，其他范围见当前交接。
+- 首版仅覆盖已定 13 平台中 MultiPost 已有的发布类型，尚无适配的类型暂不新增；完整范围见[首版发布类型决策](https://github.com/benjamin-qhy/qiushui-clip-publish/issues/22)。已有脚本仍需补齐流程和结果确认，不能视为已验收。
 - 发布目标规则已确定：Skill 指定平台、账号和电脑，浏览器与用户配置允许省略并使用预设默认值，最终定位独立扩展安装；细则见规划地图中的「发布授权、账号与运行环境边界」，术语见 `GLOSSARY.md`。默认解析预检已实现；模拟任务入队已固定安装；真实填写前账号复核已实现。
 - 已确认整合方向：剪藏保留现有 Vue 架构；发布保留 MultiPost 的 React 页面、平台脚本和模块结构并继续开发。计划由 WXT 统一构建一个扩展，统一配置与后台入口，业务模块、消息及设置分开组织；Plasmo 专属部分按需适配。双框架入口已接入，连接后台与发现API已接入，模拟任务执行已接入，模拟故障恢复已接入，真实任务只读预检已接入，上传填写已接入，小红书图文最终动作及结果核对已有实机验收，视频与其他平台按交接记录限定范围。
-- 已确定目标：复用 MultiPost 能力并整合进当前剪藏扩展，最终为一个扩展；当前子目录独立构建只是引入现状。规划与决策见 [多平台发布规划地图](https://github.com/benjamin-qhy/haiqiai-browser-extension/issues/17)，涉及发布范围、接口或验收时先读取该地图及相关子议题。
+- 已确定目标：复用 MultiPost 能力并整合进当前剪藏扩展，最终为一个扩展；当前子目录独立构建只是引入现状。规划与决策见 [多平台发布规划地图](https://github.com/benjamin-qhy/qiushui-clip-publish/issues/17)，涉及发布范围、接口或验收时先读取该地图及相关子议题。
 - 上游为 `https://github.com/leaperone/MultiPost-Extension`，引入提交为 `9e9138831b7a3c782d9010f7dfd1ae6d474ebe11`；保留上游 LICENSE 和 README，不复制嵌套 Git 仓库。
 - 根目录 WXT 命令构建剪藏与 React 发布页组成的统一扩展；MultiPost 的独立 Plasmo 安装与构建须在其子目录执行。
 

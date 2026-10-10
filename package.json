@@ -1,6 +1,6 @@
 {
-  "name": "haiqiai-browser-extension",
-  "description": "海奇AI浏览器扩展 — 网页剪藏、Obsidian 笔记与 API 驱动的内容发布",
+  "name": "qiushui-clip-publish",
+  "description": "clip publish：在一个浏览器扩展中剪藏内容、保存笔记，并发布到已接入的平台。",
   "private": true,
   "version": "1.0.0",
   "type": "module",

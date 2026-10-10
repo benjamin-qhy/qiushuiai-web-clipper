@@ -1,6 +1,6 @@
-# 海奇AI浏览器扩展架构
+# clip publish 架构
 
-本说明按 2026-10-10 当前代码整理。项目与仓库名为 `haiqiai-browser-extension`，扩展显示名称为“海奇AI”。
+本说明按 2026-10-10 当前代码整理。GitHub 仓库和根包名为 `qiushui-clip-publish`，扩展显示名称为“clip publish”；本地目录当前为 `haiqiai-browser-extension`。
 
 ## 模块边界
 

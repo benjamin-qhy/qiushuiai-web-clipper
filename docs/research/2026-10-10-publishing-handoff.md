@@ -56,7 +56,7 @@ Git只同步代码、Skill、文档和入库图文素材。`.haiqiai-publishing/
 ## 给另一台电脑的用户指令
 
 ```text
-继续开发海奇AI的发布功能。先更新本仓库main，读取AGENTS.md、MultiPost-Extension/CLAUDE.md和docs/research/2026-10-10-publishing-handoff.md，再读取skills/haiqiai-publishing/SKILL.md及其references。
+继续开发 clip publish 的发布功能。先更新本仓库main，读取AGENTS.md、MultiPost-Extension/CLAUDE.md和docs/research/2026-10-10-publishing-handoff.md，再读取skills/haiqiai-publishing/SKILL.md及其references。
 
 先检查Node24、依赖、API地址、素材文件和浏览器扩展。需要的本机开发、修复、构建和保存草稿测试已授权；实际平台操作必须由Skill调用REST API触发扩展执行，浏览器工具只读查看和排查。先验证封面临时链接403后的完整像素校验修复，再完成小红书视频新任务的完整保存草稿流程，随后按交接顺序推进其他平台。
 
