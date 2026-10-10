@@ -1,20 +1,20 @@
 # clip publish 架构
 
-本说明按 2026-10-10 当前代码整理。GitHub 仓库和根包名为 `qiushui-clip-publish`，扩展显示名称为“clip publish”；本地目录当前为 `haiqiai-browser-extension`。
+本说明按 2026-10-10 当前代码整理。GitHub 仓库和根包名为 `qiushui-clip-publish`，扩展显示名称为“clip publish”；当前检出目录为 `qiushui-clip-publish`。
 
 ## 模块边界
 
 | 模块 | 入口与职责 |
 | --- | --- |
 | WXT 宿主 | `wxt.config.ts` 统一构建 Chrome/Firefox 扩展，接入 Vue 与 React |
-| 剪藏 | `entrypoints/content.ts`、`kdocs.content.ts`、`general.content.ts` 提取页面；`popup/App.vue` 编排预览与保存 |
+| 剪藏 | `entrypoints/content.ts`、`kdocs.content.ts`、`general.content.ts` 提取页面；`popup/App.vue` 编排预览、保存、复制 Markdown 与另存为 |
 | 设置 | `entrypoints/options/` 配置笔记库、图片、Get 笔记、模型与系统提示词 |
 | 抖音收藏 | `entrypoints/douyin-sidepanel/` 配合 `src/douyin/` 收集、选择、断点导入 Get 笔记 |
 | 发布页面 | `entrypoints/publish/main.tsx` 接入 `MultiPost-Extension/src/haiqiai/PublishingWorkspace.tsx` |
-| 发布执行后台 | `src/haiqiai/connection.ts`（子项目内）处理配对、心跳、任务与可信消息；`preflight.ts` 处理真实任务 |
-| 平台适配 | 子项目 `src/sync/` 保留 MultiPost 图文、视频、文章脚本；当前 API 真实准备主要在 `dynamic/rednote-prepare.ts` |
+| 发布执行后台 | 子项目 `src/haiqiai/connection.ts` 处理配对、心跳、任务与可信消息；`simulation.ts` 处理模拟任务，`preflight.ts` 处理真实任务 |
+| 平台适配 | 子项目 `src/sync/` 保留 MultiPost 图文、视频、文章脚本；当前 API 真实填写接入 `dynamic/rednote-prepare.ts`、`rednote-finish.ts`、`rednote-result.ts` 和 `x-prepare.ts`，抖音、脉脉仅只读预检 |
 | 发布 API | `packages/publishing-api/` 独立 Node 24.13+ HTTP/SQLite 服务，保存身份、素材、不可变任务快照、租约与证据 |
-| 发布 Skill | `skills/haiqiai-publishing/` 调用 API；不自动安装到全局技能目录 |
+| 发布 Skill | `skills/qiushui-publishing/` 调用 API；不自动安装到全局技能目录 |
 
 `MultiPost-Extension/` 保留上游 Plasmo 配置、依赖、LICENSE 与 README；根 WXT 打包显式接入的发布模块，其余上游代码仍独立构建。根构建与 Vitest 共用 React/ReactDOM/HeroUI 实例，避免重复 React。干净检出时也需安装子项目依赖，否则根 WXT 构建无法解析 `plasmo/templates/tsconfig.base`；安装步骤见根 README。
 
@@ -30,6 +30,8 @@
 图片模式为 `local/per-note`、`local/shared`、`oss`；OSS 当前仅阿里云，HMAC-SHA1 签名使用 Web Crypto。
 
 ## 发布数据流
+
+开发发布功能前必读 [MultiPost 发布技术架构](multipost-architecture.md)，其中说明职责分工、任务参数与默认测试范围。
 
 1. 管理端登记电脑、账号、浏览器配置与默认目标，生成一次性配对码和独立 Skill 密钥。
 2. Chrome 发布页发送 `HAIQIAI_PUBLISHING_CONNECTION` 消息；后台只接受本扩展 `publish.html` 调用，保存安装专属凭据，每 30 秒发送心跳。普通网页不能通过该消息获取密钥。
@@ -57,6 +59,6 @@ API 测试需要 Node 24.13+，使用临时 SQLite 与本地 HTTP 监听；运�
 
 ## 文档维护与兼容名称
 
-项目规则统一维护于根 `AGENTS.md`；子项目保留 `MultiPost-Extension/CLAUDE.md`。技术说明、接口文档、术语与带日期验收各自更新，导航见 [文档入口](README.md)。
+根 `AGENTS.md` 只维护长期规则和按任务读取的入口；发布开发细则见 [发布开发规则](agents/publishing-development.md)，子项目规则见 `MultiPost-Extension/AGENTS.md`。技术说明、接口文档、术语与带日期验收各自更新，导航见 [文档入口](README.md)。
 
 更新服务仍使用 `http://version.qiushui.me/qiushuiai-web-clipper.json`。这是已有外部接口，未随仓库名称迁移；重命名不会更改凭据字段、数据库标识、浏览器账号或任务 ID。

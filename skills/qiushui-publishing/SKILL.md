@@ -1,5 +1,5 @@
 ---
-name: haiqiai-publishing
+name: qiushui-publishing
 description: 根据内容形式、平台、账号和执行电脑，通过 clip publish REST API 驱动浏览器扩展上传填写、保存草稿或发布。用于单次提交、多平台批量发布、查询结果及同一任务的安全接续。
 ---
 
