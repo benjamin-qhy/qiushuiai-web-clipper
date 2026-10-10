@@ -1,13 +1,13 @@
 ---
 name: haiqiai-publishing
-description: 根据内容形式、平台、账号和执行电脑，通过海奇AI REST API 驱动浏览器扩展上传填写、保存草稿或发布。用于单次提交、多平台批量发布、查询结果及同一任务的安全接续。
+description: 根据内容形式、平台、账号和执行电脑，通过 clip publish REST API 驱动浏览器扩展上传填写、保存草稿或发布。用于单次提交、多平台批量发布、查询结果及同一任务的安全接续。
 ---
 
-# 海奇AI发布
+# clip publish 发布
 
 一次 Skill 调用负责整理参数、上传素材、提交任务、跟踪结果，并在授权范围内接续。所有平台上传、填写和点击均由 **API → 浏览器扩展 → MultiPost 平台适配器**执行。浏览器工具仅用于只读核对，不能代替扩展完成操作。
 
-本技能随海奇AI剪藏仓库交付，不自动安装到全局。命令在仓库根目录运行，使用 Node 24 和项目依赖。先读 [参数与调用](references/requests.md)；涉及恢复、重复调用或结果不明时读 [接续与结果](references/recovery.md)。接口以仓库 [API说明](../../packages/publishing-api/README.md) 及当前服务返回为准。
+本技能随 clip publish 仓库交付，不自动安装到全局。命令在仓库根目录运行，使用 Node 24 和项目依赖。先读 [参数与调用](references/requests.md)；涉及恢复、重复调用或结果不明时读 [接续与结果](references/recovery.md)。接口以仓库 [API说明](../../packages/publishing-api/README.md) 及当前服务返回为准。
 
 ## 输入与确认
 

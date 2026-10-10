@@ -1,6 +1,6 @@
 {
-  "name": "qiushuiai-web-clipper",
-  "description": "秋水 · 网页剪藏 — 将飞书文档一键保存为 Obsidian Markdown 笔记",
+  "name": "qiushui-clip-publish",
+  "description": "clip publish：在一个浏览器扩展中剪藏内容、保存笔记，并发布到已接入的平台。",
   "private": true,
   "version": "1.0.0",
   "type": "module",

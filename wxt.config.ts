@@ -34,8 +34,8 @@ export default defineConfig({
   },
   manifest: {
     default_locale: 'zh_CN',
-    name: 'QiushuiAI · 网页剪藏',
-    description: 'QiushuiAI · 网页剪藏 — 将网页，飞书、金山文档一键保存为 Obsidian Markdown 笔记',
+    name: 'clip publish',
+    description: 'clip publish：在一个浏览器扩展中剪藏内容、保存笔记，并发布到已接入的平台。',
     permissions: ['storage', 'activeTab', 'scripting', 'tabs', 'sidePanel', 'alarms'],
     host_permissions: [
       '*://*.feishu.cn/*',

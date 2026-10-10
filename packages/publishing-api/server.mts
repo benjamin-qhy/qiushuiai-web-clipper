@@ -240,6 +240,6 @@ export async function startServer({ directory, adminKey, port = 43129, host = '1
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const server = await startServer({ directory: process.env.HAIQIAI_DATA_DIR || '.haiqiai-publishing', adminKey: process.env.HAIQIAI_ADMIN_KEY || readFileSync(join(process.env.HAIQIAI_DATA_DIR || '.haiqiai-publishing', 'admin.key'), 'utf8').trim(), port: Number(process.env.PORT || 43129), host: process.env.HOST || '127.0.0.1', maxAssetBytes: Number(process.env.HAIQIAI_MAX_ASSET_BYTES || 512 * 1024 * 1024) })
-  console.log(`HaiqiAI publishing API: ${server.url}`)
+  console.log(`clip publish API: ${server.url}`)
   for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => { void server.close() })
 }

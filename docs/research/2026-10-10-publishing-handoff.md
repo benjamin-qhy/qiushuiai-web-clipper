@@ -56,11 +56,11 @@ Git只同步代码、Skill、文档和入库图文素材。`.haiqiai-publishing/
 ## 给另一台电脑的用户指令
 
 ```text
-继续开发海奇AI的发布功能。先更新本仓库main，读取AGENTS.md、MultiPost-Extension/CLAUDE.md和docs/research/2026-10-10-publishing-handoff.md，再读取skills/haiqiai-publishing/SKILL.md及其references。
+继续开发 clip publish 的发布功能。先更新本仓库main，读取AGENTS.md、MultiPost-Extension/CLAUDE.md和docs/research/2026-10-10-publishing-handoff.md，再读取skills/haiqiai-publishing/SKILL.md及其references。
 
 先检查Node24、依赖、API地址、素材文件和浏览器扩展。需要的本机开发、修复、构建和保存草稿测试已授权；实际平台操作必须由Skill调用REST API触发扩展执行，浏览器工具只读查看和排查。先验证封面临时链接403后的完整像素校验修复，再完成小红书视频新任务的完整保存草稿流程，随后按交接顺序推进其他平台。
 
 这是另一台电脑：不要把旧电脑的localhost、账号/素材ID、原标签页或本地草稿视为当前可用。优先检查是否已有可用API与配对；若没有，准备本机API及新电脑配对。缺少素材、专用凭据、登录或扩展加载时只明确指出具体缺项。原任务不得改派或重发；在新实例的草稿验收可以建立明确标记的新测试任务。
 
-沿用MultiPost原架构和已有平台脚本；不另造重复实现。代码、测试和文档同步，AGENTS.md与CLAUDE.md保持完全一致。以真实平台证据区分草稿、已提交和已发布，未知结果只核对。最新修复尚未实机验收，不能当成已通过。当前继续测试优先草稿，公开发布前取得本次明确指令。
+沿用MultiPost原架构和已有平台脚本；不另造重复实现。代码、测试和文档同步，根目录项目规则统一维护在AGENTS.md，子项目规则读取MultiPost-Extension/CLAUDE.md。以真实平台证据区分草稿、已提交和已发布，未知结果只核对。最新修复尚未实机验收，不能当成已通过。当前继续测试优先草稿，公开发布前取得本次明确指令。
 ```
