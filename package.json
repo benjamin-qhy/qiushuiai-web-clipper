@@ -1,6 +1,6 @@
 {
-  "name": "qiushuiai-web-clipper",
-  "description": "秋水 · 网页剪藏 — 将飞书文档一键保存为 Obsidian Markdown 笔记",
+  "name": "haiqiai-browser-extension",
+  "description": "海奇AI浏览器扩展 — 网页剪藏、Obsidian 笔记与 API 驱动的内容发布",
   "private": true,
   "version": "1.0.0",
   "type": "module",

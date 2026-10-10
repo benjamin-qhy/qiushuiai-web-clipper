@@ -1,79 +1,46 @@
-# QiushuiAI · 网页剪藏
+# 海奇AI浏览器扩展
 
-将飞书文档、金山文档和任意网页一键保存为 Obsidian Markdown 笔记的浏览器扩展，支持 Chrome 和 Firefox。
+海奇AI（HaiqiAI）将网页、飞书文档和金山文档保存为 Obsidian Markdown 笔记，并整合 API 驱动的内容发布。仓库与包名为 `haiqiai-browser-extension`，浏览器扩展显示名称为“海奇AI”。
 
----
+## 当前功能
 
-## 功能特性
+- 剪藏飞书 docx/wiki、金山文档和通用网页，生成正文与 YAML 元数据。
+- 图片保存到每篇笔记资源目录、共享目录，或上传阿里云 OSS。
+- 保存链接到 Get 笔记；在抖音收藏页批量选择并导入链接。
+- 管理多平台 AI 模型、连接测试与系统提示词。
+- Chrome 提供 React 发布工作台，与独立发布 API 配对、查看账号和任务、触发执行与只读结果核对。Firefox 保留剪藏功能，隐藏发布入口且不注册发布后台。
 
-**文档剪藏**
+旧内容创作工作台、图片卡片、独立 Web 预览和书签管理已经移除。现有发布工作台是 MultiPost 集成的任务执行界面。
 
-- **飞书文档**（docx / wiki）：完整提取标题、正文、图片、代码块、表格、列表等，保留原始格式
-- **金山文档**（kdocs.cn）：提取文档正文并转换为 Markdown
-- **通用网页**：自动提取页面标题、作者、发布时间和正文，转换为干净的 Markdown
+发布能力有明确的验收范围：小红书图文自动暂存、发布及结果核对已有实机记录；视频仅多次原页接续存草稿通过，新任务单次完成、双封面和公开发布未验收。其他平台按代码接入和真实验收分别记录。详见 [当前交接](docs/research/2026-10-10-publishing-handoff.md)。
 
-**图片处理**
+## 本地开发与安装
 
-- `local / per-note`（默认）：图片保存到与笔记同名的 `.assets/` 文件夹，Markdown 使用相对路径引用
-- `local / shared`：图片统一保存到共享目录，适合多篇笔记复用
-- `OSS`：图片上传至阿里云 OSS，Markdown 使用完整 URL 引用
+根扩展使用 pnpm 9、WXT、Vue 3、React 18 与 TypeScript。发布 API 需要 Node.js **24.13+**（内置 SQLite）。
 
-**AI 设置**
+```sh
+pnpm install
+pnpm --dir MultiPost-Extension install --ignore-workspace --frozen-lockfile --ignore-scripts
+pnpm dev
+pnpm build
+pnpm build:firefox
+pnpm compile
+pnpm exec vitest run --maxWorkers=1
+```
 
-- 配置多个 AI 平台和模型，并测试连接
-- 保存和编辑系统提示词
+第二条安装命令补齐根 WXT 构建所需的子项目配置与依赖；pnpm 9 使用 `--ignore-workspace` 跳过上游仅含构建依赖设置的工作区文件。此处跳过子项目安装脚本，不安装其 Git hooks。
 
----
+Chrome 打开 `chrome://extensions/`，开启开发者模式，加载 `.output/chrome-mv3/`。Firefox 打开 `about:debugging#/runtime/this-firefox`，临时加载 `.output/firefox-mv2/manifest.json`；临时安装在重启后失效。发行包用 `pnpm zip` 或 `pnpm zip:firefox` 生成，输出文件名包含包名和版本，以 `.output/` 实际产物为准。
 
-## 安装
+首次剪藏前，在弹窗选择 Obsidian 笔记库并授权读写；设置页可配置子目录、图片模式、OSS、Get 笔记和 AI 模型。Chrome 从弹窗或设置页的“发布工作台”进入 API 配对和任务界面。
 
-目前扩展尚未发布至 Chrome 应用商店，需手动加载。
+发布服务启动、账号登记、素材上传与调用参数见 [发布 API](packages/publishing-api/README.md)，自动化调用见 [发布 Skill](skills/haiqiai-publishing/SKILL.md)。所有平台写操作由 API 驱动扩展；记录最终动作授权与平台结果，结果未知时先核对原任务。
 
-### Chrome
+## 文档
 
-1. 前往 [Releases](https://gitee.com/Benjamin-QHY/qiushuiai-web-clipper/releases) 下载最新版 `chrome.zip` 并解压
-2. 打开 Chrome，地址栏输入 `chrome://extensions`
-3. 开启右上角**开发者模式**
-4. 点击**加载已解压的扩展**，选择解压后的文件夹
+- [文档导航](docs/README.md)：现行文档与历史记录的入口。
+- [架构说明](docs/architecture.md)：模块边界、消息流、存储、构建与验证。
+- [使用说明](docs/wiki.md)：剪藏、Get 笔记与发布入口。
+- [术语表](GLOSSARY.md)与 [项目规则](AGENTS.md)。
 
-### Firefox
-
-1. 前往 [Releases](https://gitee.com/Benjamin-QHY/qiushuiai-web-clipper/releases) 下载最新版 `firefox.zip` 并解压
-2. 打开 Firefox，地址栏输入 `about:debugging#/runtime/this-firefox`
-3. 点击**临时加载附加组件**，选择解压目录中的 `manifest.json`
-
----
-
-## 使用方法
-
-### 第一次使用：授权 Obsidian Vault
-
-1. 点击浏览器工具栏中的扩展图标，打开弹窗
-2. 点击**选择 Vault 文件夹**，在系统对话框中选择你的 Obsidian 笔记库根目录
-3. 授权后，扩展会记住该目录，后续无需重复操作
-
-### 剪藏网页
-
-1. 打开目标页面（飞书文档、金山文档或任意网页）
-2. 点击扩展图标
-3. 弹窗中会自动显示提取到的标题和内容预览
-4. 点击**保存**，笔记即写入 Obsidian Vault 对应目录
-
-### 配置选项
-
-点击扩展图标 → 右上角齿轮图标，进入设置页：
-
-| 选项 | 说明 |
-|------|------|
-| 保存子目录 | 笔记在 Vault 中的子目录路径，留空则保存到根目录 |
-| 图片模式 | `per-note` / `shared` / `oss`，见上方说明 |
-| OSS 配置 | 阿里云 OSS 的 Endpoint、Bucket、AccessKey 等 |
-| AI 配置 | 多平台模型配置、连接测试和系统提示词管理 |
-
----
-
-## 技术栈
-
-- [WXT](https://wxt.dev) — 浏览器扩展开发框架
-- [Vue 3](https://vuejs.org) + TypeScript
-- File System Access API — 直接写入本地 Obsidian Vault
+GitHub：[benjamin-qhy/haiqiai-browser-extension](https://github.com/benjamin-qhy/haiqiai-browser-extension)。更新检查暂沿用既有服务端路径 `http://version.qiushui.me/qiushuiai-web-clipper.json`，仓库改名不代表该外部接口已迁移。

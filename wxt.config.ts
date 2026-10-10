@@ -34,8 +34,8 @@ export default defineConfig({
   },
   manifest: {
     default_locale: 'zh_CN',
-    name: 'QiushuiAI · 网页剪藏',
-    description: 'QiushuiAI · 网页剪藏 — 将网页，飞书、金山文档一键保存为 Obsidian Markdown 笔记',
+    name: '海奇AI',
+    description: '海奇AI — 网页剪藏、Obsidian 笔记与 API 驱动的内容发布',
     permissions: ['storage', 'activeTab', 'scripting', 'tabs', 'sidePanel', 'alarms'],
     host_permissions: [
       '*://*.feishu.cn/*',
